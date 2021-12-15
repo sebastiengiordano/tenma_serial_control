@@ -15,7 +15,7 @@ def autoselect_serial(available_serial_port, patterns=("STM", "STLink")):
                 pattern_position = hwid.find(pattern, pattern_position)
                 if not pattern_position < 0 and pattern_position != pattern_position_mem:
                     pattern_position_mem = pattern_position
-                    selected_serial = port
+                    return port
                 else:
                     selected_serial = None
                     break
