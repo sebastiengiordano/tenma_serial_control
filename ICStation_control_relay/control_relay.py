@@ -45,7 +45,8 @@ def connect_to_serial(port, baudrate, timeout, verbose=False):
 def configure_relay_board(ser):
     ser.write(b'\x50')
     time.sleep(0.1)
-    data, hexadecimal_string = read_port_com(ser, True)
+    data = read_port_com(ser, True)
+    hexadecimal_string = bytearray(data).hex()
     if hexadecimal_string in ('AB', 'AC', 'AD'):
         print('Relay Board Manager: Tool--Configure')
         ser.write(b'\x51')
@@ -83,7 +84,22 @@ def read_port_com(ser, verbose=False):
     return data
 
 
+def format_command(value):
+    return bytearray([value])
+
+
+def test_command(ser):
+    for value in range(16):
+        value_to_send = 15 - value
+        command = format_command(value_to_send)
+        ser.write(command)
+        print(
+            f'\tvalue_to_send: {value_to_send}'
+            f'\trelay command: {command}')
+        time.sleep(1.5)
+
+
 for port in ('COM6', 'COM7'):
     ser = connect_to_serial(port, baudrate, 0.5, True)
     configure_relay_board(ser)
-    relay()
+    test_command(ser)
