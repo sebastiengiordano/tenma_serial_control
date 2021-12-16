@@ -1,9 +1,13 @@
-import usb.core
-import usb.util
+import usb
 import time
+import usb.backend.libusb1
+
+# backend = usb.backend.libusb1.get_backend(
+#     find_library=lambda x: "C:\Windows\SysWOW64\libusb1.dll")
+# dev = usb.core.find(backend=backend, find_all=True)
 
 # List USB device in Terminal
-# device = usb.core.show_devices(True)
+device = usb.core.show_devices(True)
 
 # find our device
 dev = usb.core.find(bcdDevice=0x1400)
@@ -28,24 +32,24 @@ if dev is None:
 
 # alt = usb.util.find_descriptor(dev, find_all=True)
 
-endpoint = dev[0][(0,0)][0]
+endpoint = dev[0][(0, 0)][0]
 
 start = time.time()
 for _ in range(256):
-    data = dev.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize, 100)
-    print (time.time() - start, ' :\t', data)
+    data = dev.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize, 1)
+    print(time.time() - start, ' :\t', data)
 
 # get an endpoint instance
 cfg = dev.get_active_configuration()
-intf = cfg[(0,0)]
+intf = cfg[(0, 0)]
 
 ep = usb.util.find_descriptor(
     intf,
     # match the first OUT endpoint
-    custom_match = \
-    lambda e: \
-        usb.util.endpoint_direction(e.bEndpointAddress) == \
-        usb.util.ENDPOINT_OUT)
+    custom_match=(lambda e:
+                (usb.util.endpoint_direction(e.bEndpointAddress)
+                == usb.util.ENDPOINT_OUT))
+)
 
 assert ep is not None
 
