@@ -12,33 +12,65 @@ from tenma.tenmaDcLib import Tenma72_2535, Tenma72Base
 
 from utils import enumerate_serial, autoselect_serial, getVersion
 
-# Seek for all connected device
-available_serial_port = enumerate_serial()
-# Select the port
-alim_serial_port = autoselect_serial(available_serial_port, ('VID:PID=0416:5011',))
-# Instantiate Tenma72_2535
-tenma72_2535 = Tenma72_2535(alim_serial_port, debug=True)
-print(tenma72_2535.getVersion())
+
+MAX_VOLTAGE = 3500
+MAX_CURRENT = 60
 
 
-tenma72_2535.setVoltage(1, 3000)
-tenma72_2535.setCurrent(1, 60)
-tenma72_2535.ON()
+class Tenma72_2535_manage:
+
+    def __init__(self):
+        # Seek for all connected device
+        available_serial_port = enumerate_serial()
+        # Select the port
+        alim_serial_port = autoselect_serial(available_serial_port, ('VID:PID=0416:5011',))
+        # Instantiate Tenma72_2535
+        self.tenma72_2535 = Tenma72_2535(alim_serial_port, debug=True)
+        print(self.tenma72_2535.getVersion())
+
+    def power(self, state: str, verbose=False)-> str:
+        if state == 'ON':
+            self.tenma72_2535.ON()
+        elif state == 'OFF':
+            self.tenma72_2535.OFF()
+        else:
+            state = 'OFF'
+            self.tenma72_2535.OFF()
+            print('Command shall be ON or OFF.')
+            print('Power set to OFF.')
+        if verbose:
+            print(f'For tenma72_2535: power is {state}.')
+        return state
+
+    def set_voltage(self, value: int=0, channel: int=1)-> int:
+        '''Set the voltage value (in mV)'''
+        if value > MAX_VOLTAGE:
+            value = MAX_VOLTAGE
+        self.tenma72_2535.setVoltage(channel, value)
+        return value
+
+    def set_current(self, value: int=0, channel: int=1)-> int:
+        '''Set the current value (in mA)'''
+        if value > MAX_CURRENT:
+            value = MAX_CURRENT
+        self.tenma72_2535.setCurrent(channel, value)
+        return value
 
     # for port in ('COM1', 'COM2', 'COM3'):
-ser = serial.Serial(
-    'COM7',
-    # 19200,
-    115200,
-    timeout=3,
-    parity=serial.PARITY_ODD,
-    stopbits=serial.STOPBITS_ONE)
-ser.xonxoff = False
-ser.rtscts = False
-ser.dsrdtr = False
-ser.writeTimeout = 0.5
-ser.bytesize = serial.EIGHTBITS
-ser.setRTS(False) # required for tenma meters!
+# ser = serial.Serial(
+#     'COM7',
+#     # 19200,
+#     115200,
+#     timeout=3,
+#     parity=serial.PARITY_ODD,
+#     stopbits=serial.STOPBITS_ONE)
+# ser.xonxoff = False
+# ser.rtscts = False
+# ser.dsrdtr = False
+# ser.writeTimeout = 0.5
+# ser.bytesize = serial.EIGHTBITS
+# ser.setRTS(False) # required for tenma meters!
+
         # out = ser.readline() # make 
 
         # times,vals=[],[]
@@ -57,15 +89,17 @@ ser.setRTS(False) # required for tenma meters!
         
         
         # Read serial otput as a string
-out = ""
-count = 0
-while count < 1000:
-    count += 1
-    time.sleep(0.05)
-    in_waiting = ser.inWaiting()
-    if in_waiting > 0:
-        out += ser.read(1).decode('ascii')
-print("<< ", out)
+# out = ""
+# count = 0
+# while count < 1000:
+#     count += 1
+#     time.sleep(0.05)
+#     in_waiting = ser.inWaiting()
+#     if in_waiting > 0:
+#         out += ser.read(1).decode('ascii')
+# print("<< ", out)
+
+
 # out += ser.read().decode('ascii')
 # print("<< ", out)
 # except Exception as inst:

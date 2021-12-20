@@ -4,12 +4,23 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "Python : Fichier actuel",
             "type": "python",
             "request": "launch",
             "program": "${file}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Module - bench",
+            "type": "python",
+            "request": "launch",
+            "module": "bench",
+            "args": [
+                "-g"
+            ],
+            "stopOnEntry": false
         }
     ]
 }

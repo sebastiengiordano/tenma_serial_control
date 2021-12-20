@@ -14,7 +14,27 @@ device = usb.core.show_devices(True)
 
 # find our device
 dev = usb.core.find(bcdDevice=0x1400)
-endpoint = dev[0][(0, 0)][0]
+dev.set_configuration()
+cfg = dev.get_active_configuration()
+intf = cfg[(0,0)]
+endpoint = usb.util.find_descriptor(
+    intf,
+    custom_match = (
+        lambda e:
+            usb.util.endpoint_direction(e.bEndpointAddress)
+            == usb.util.ENDPOINT_OUT
+        )
+    )
+# endpoint = dev[0][(0, 0)][0]
+
+start = time.time()
+for _ in range(256):
+    # data = dev.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize, 1)
+    data = dev.read(endpoint.bEndpointAddress, endpoint.wMaxPacketSize)
+    print(time.time() - start, ' :\t', data)
+
+
+
 
 QQQ = Queue()
 

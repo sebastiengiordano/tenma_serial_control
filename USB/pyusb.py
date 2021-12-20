@@ -1,13 +1,14 @@
-import usb
+import usb.core
+import usb.util
 import time
-import usb.backend.libusb1
+# import usb.backend.libusb1
 
 # backend = usb.backend.libusb1.get_backend(
 #     find_library=lambda x: "C:\Windows\SysWOW64\libusb1.dll")
 # dev = usb.core.find(backend=backend, find_all=True)
 
 # List USB device in Terminal
-device = usb.core.show_devices(True)
+device = usb.core.show_devices(True, find_all=True)
 
 # find our device
 dev = usb.core.find(bcdDevice=0x1400)
