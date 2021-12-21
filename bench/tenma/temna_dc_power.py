@@ -16,10 +16,14 @@ class Tenma_72_2535_manage:
         # Seek for all connected device
         available_serial_port = enumerate_serial()
         # Select the port
-        alim_serial_port = autoselect_serial(available_serial_port, ('VID:PID=0416:5011',))
+        alim_serial_port = autoselect_serial(
+            available_serial_port,
+            ('VID:PID=0416:5011',))
         # Instantiate Tenma72_2535
-        self.tenma72_2535 = Tenma72_2535(alim_serial_port, debug=True)
-        print(self.tenma72_2535.getVersion())
+        self.tenma72_2535 = Tenma72_2535(
+            alim_serial_port,
+            debug=False)
+        # print(self.tenma72_2535.getVersion())
 
     def power(self, state: str, verbose=False)-> str:
         if state == 'ON':
