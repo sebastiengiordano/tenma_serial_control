@@ -14,13 +14,13 @@ if __name__ == "__main__":
     dc_power.power('ON')
 
     delta = []
-    
+
     try:
-        for time_after_set_voltage in range(2500, 3101, 200):
+        for time_after_set_voltage in range(1000, 3101, 200):
             # init
             dc_power.set_voltage(2800)
             time.sleep(.5)
-            for voltage in range(2800, 3501, 10):
+            for voltage in range(2800, 3601, 200):
                 dc_power.set_voltage(voltage)
                 time.sleep(time_after_set_voltage / 1000)
                 measurement = int(multimeter.get_measurement() * 1000)
@@ -30,6 +30,7 @@ if __name__ == "__main__":
                 f'{(sum(delta)/len(delta)):.1f}\n'
                 f'{min(delta)}\n'
                 f'{max(delta)}\n'
+                f'{delta}\n'
                 )
     except Exception as err:
                     print()
@@ -42,3 +43,4 @@ if __name__ == "__main__":
     dc_power.power('OFF')
     dc_power.disconnect()
     multimeter.kill()
+    print('\tTest end.')
