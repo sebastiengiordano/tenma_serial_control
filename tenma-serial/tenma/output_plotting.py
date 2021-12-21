@@ -17,7 +17,7 @@ MAX_VOLTAGE = 3500
 MAX_CURRENT = 60
 
 
-class Tenma72_2535_manage:
+class Tenma_72_2535_manage:
 
     def __init__(self):
         # Seek for all connected device
