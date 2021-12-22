@@ -12,18 +12,19 @@ MAX_CURRENT = 60
 
 class Tenma_72_2535_manage:
 
-    def __init__(self):
+    def __init__(self, vendor_product_id='VID:PID=0416:5011'):
         # Seek for all connected device
         available_serial_port = enumerate_serial()
         # Select the port
         alim_serial_port = autoselect_serial(
             available_serial_port,
-            ('VID:PID=0416:5011',))
+            (vendor_product_id,))
         # Instantiate Tenma72_2535
         self.tenma72_2535 = Tenma72_2535(
             alim_serial_port,
             debug=False)
         # print(self.tenma72_2535.getVersion())
+        self.comm_port_status = 'Open'
 
     def power(self, state: str, verbose=False)-> str:
         if state == 'ON':
@@ -37,6 +38,7 @@ class Tenma_72_2535_manage:
             print('Power set to OFF.')
         if verbose:
             print(f'For tenma72_2535: power is {state}.')
+        self.state = state
         return state
 
     def set_voltage(self, value: int=0, channel: int=1)-> int:
@@ -58,7 +60,10 @@ class Tenma_72_2535_manage:
         return value
 
     def disconnect(self):
+        self.power('OFF')
         self.tenma72_2535.close()
+        self.comm_port_status = 'Close'
 
     def __del__(self):
-        self.disconnect()
+        if self.comm_port_status == 'Open':
+            self.disconnect()
