@@ -7,6 +7,8 @@ from os import listdir
 import csv
 from datetime import date
 
+from .logger.logger import Logger
+
 
 def files_in_folder(folder_path: str ) -> list:
     '''Return the list of all files in folder_path and its subfolder'''
@@ -95,11 +97,12 @@ if __name__ == "__main__":
     dc_power = Tenma_72_2535_manage()
     multimeter = Tenma_72_7730A_manage(0x1400)
     multimeter.start()
+    logging = Logger()
+    logging.set_column_width([40, 10, 10, 10, 10])
 
     # dc_power.set_current(60)
     dc_power.power('ON')
 
-    logging_file_path = generate_logging_file_path()
     try:
         for index, voltage_step in enumerate(range(200, 301, 50)):
             test_report = []
@@ -108,7 +111,7 @@ if __name__ == "__main__":
             print('\n\t', frame)
             print('\t', sentence)
             print('\t', frame, '\n')
-            for time_after_set_voltage in range(500, 4510, 500):
+            for time_after_set_voltage in range(100, 150, 20):
                 # test init
                 delta = []
                 dc_power.set_voltage(2800)
@@ -138,28 +141,34 @@ if __name__ == "__main__":
                     min(delta),
                     max(delta),
                     strange_value])
-            add_lines_to_logging_file(logging_file_path, [''])
-            add_lines_to_logging_file(logging_file_path, [sentence])
+            logging.add_lines_to_logging_file([''])
+            logging.add_lines_to_logging_file([sentence])
 
             data = ["time_after_set_voltage (ms):"]
             data.extend([x[0] for x in test_report])
-            add_lines_to_logging_file(logging_file_path, data)
+            data.extend(['Test OK'])
+            logging.add_lines_to_logging_file(data)
 
             data = ["moyenne (mV):"]
             data.extend([x[1] for x in test_report])
-            add_lines_to_logging_file(logging_file_path, data)
+            data.extend(['Test NOK'])
+            logging.add_lines_to_logging_file(data)
 
             data = ["minimum (mV):"]
             data.extend([x[2] for x in test_report])
-            add_lines_to_logging_file(logging_file_path, data)
+            data.extend(['Test OK'])
+            logging.add_lines_to_logging_file(data)
 
             data = ["maximum (mV):"]
             data.extend([x[3] for x in test_report])
-            add_lines_to_logging_file(logging_file_path, data)
+            data.extend(['Test NOK'])
+            logging.add_lines_to_logging_file(data)
 
             data = ["valeur atypique:"]
             data.extend([x[4] for x in test_report])
-            add_lines_to_logging_file(logging_file_path, data)
+            data.extend(['Test OK'])
+            logging.add_lines_to_logging_file(data)
+        logging.stop_logging(f'Test {index} with voltage_step = {voltage_step}')
 
     except Exception as err:
                     print()
