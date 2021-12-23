@@ -1,0 +1,14 @@
+""
+- Test n°0 with voltage_step = 200 -
+time_after_set_voltage (ms):,100,120,140,Test OK
+moyenne (mV):,3100.0,3100.0,3100.0,Test NOK
+minimum (mV):,2800,2800,2800,Test OK
+maximum (mV):,3400,3400,3400,Test NOK
+valeur atypique:,[],[],[],Test OK
+""
+- Test n°1 with voltage_step = 250 -
+time_after_set_voltage (ms):,100,120,140,Test OK
+moyenne (mV):,3050.0,3050.0,3050.0,Test NOK
+minimum (mV):,2800,2800,2800,Test OK
+maximum (mV):,3300,3300,3300,Test NOK
+valeur atypique:,[],[],[],Test OK

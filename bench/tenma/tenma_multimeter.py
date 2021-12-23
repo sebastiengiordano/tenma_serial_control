@@ -6,7 +6,7 @@ from enum import Enum
 
 class MeasurementFunction(Enum):
     Voltage = 1
-    Current = 2
+    Current = 8
     Resistance = 3
     UnImplemented = 4
 
@@ -119,20 +119,20 @@ class Tenma_72_7730A_manage(threading.Thread):
 
         decimal = 0
         mul = 1
-        if modeVal == 1: #DC voltage
+        # Voltage (V)
+        if modeVal == MeasurementFunction.Voltage.value:
             self.mode = MeasurementFunction.Voltage
             decimal = rangeVal
-        elif modeVal == 2: #mA
+        # Current (mA)
+        elif modeVal == MeasurementFunction.Current.value:
             self.mode = MeasurementFunction.Current
-            decimal = rangeVal
-        elif modeVal == 3: #mV
-            self.mode = MeasurementFunction.Voltage
-            decimal = 3
-            mul = 1./1000
-        elif modeVal == 4: #Ohm
+            decimal = (rangeVal + 1) % 3 + 1
+            mul = 1000**((rangeVal + 1) // 3)
+        # Resistance (Ohm)
+        elif modeVal == MeasurementFunction.Resistance.value:
             self.mode = MeasurementFunction.Resistance
-            decimal = (rangeVal+1)%3 + 1
-            mul = 1000**((rangeVal+1)//3)
+            decimal = (rangeVal + 1) % 3 + 1
+            mul = 1000**((rangeVal + 1) // 3)
         else:
             self.mode = MeasurementFunction.UnImplemented
 
