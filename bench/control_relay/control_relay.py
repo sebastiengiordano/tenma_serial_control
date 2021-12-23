@@ -8,27 +8,32 @@ from ..utils.utils import (
 class ControlRelay:
     baudrate = 9600
     
-    def __init__(self):
+    def __init__(self, verbose=False):
+        # Set debug flag
+        self._verbose = verbose
         # Initialize connection to control relay board
         self._initialize_connection()
         # Check connection
         self._check_connection()
+        # Configure relay board
+        self._configure_relay_board(self._control_relay_ac)
+        self._configure_relay_board(self._control_relay_ad)
 
     def manage_relay(self, board: str, relay: int, state: RelayState):
         if relay not in range(1, 9):
             raise ValueError('Relay could only be in range 1 to 8.')
-        if board not in ['AB', 'AD']:
-            raise ValueError('Only control relay board AB or AD are managed.')
-        if board == 'AB':
-            # Update the command value of board AB
-            self._command_ab = self._update_command(
-                self._command_ab,
+        if board not in ['AC', 'AD']:
+            raise ValueError('Only control relay board AC or AD are managed.')
+        if board == 'AC':
+            # Update the command value of board AC
+            self._command_ac = self._update_command(
+                self._command_ac,
                 relay,
                 state)
-            # Send command to board AB
+            # Send command to board AC
             self._send_command(
-                self._control_relay_ab,
-                self._command_ab
+                self._control_relay_ac,
+                self._command_ac
             )
         if board == 'AD':
             # Update the command value of board AD
@@ -41,19 +46,38 @@ class ControlRelay:
                 self._control_relay_ad,
                 self._command_ad
             )
+        if self._verbose:
+            print(
+                f'Board \'{board}\': '
+                f'Relay n°{relay} {state.name}')
+
+    def disconnect(self):
+        self._send_command(
+            self._control_relay_ac,
+            0xFF)
+        self._send_command(
+            self._control_relay_ad,
+            0xFF)
+        self._control_relay_ac.close()
+        self._control_relay_ad.close()
+        if self._verbose:
+            print(
+                f'Port {self._control_relay_ac.port} closed.'
+                '\n'
+                f'Port {self._control_relay_ad.port} closed.')
 
     def _initialize_connection(self):
         # Get port and id
         port_and_id = self._get_port_and_id()
         # Set serial device
-        self._control_relay_ab = None
+        self._control_relay_ac = None
         self._control_relay_ad = None
         for port, id in port_and_id:
-            if id == 'AB':
-                self._control_relay_ab = self._connect_to_serial(
+            if id == 'AC':
+                self._control_relay_ac = self._connect_to_serial(
                     port=port,
                     baudrate=self.baudrate)
-                self._command_ab = 0xFF
+                self._command_ac = 0xFF
             elif id == 'AD':
                 self._control_relay_ad = self._connect_to_serial(
                     port=port,
@@ -62,23 +86,22 @@ class ControlRelay:
 
     def _check_connection(self):
         fail_connection_list = []
-        if self._control_relay_ab is None:
-            fail_connection_list.append('AB')
+        if self._control_relay_ac is None:
+            fail_connection_list.append('AC')
         if self._control_relay_ad is None:
             fail_connection_list.append('AD')
-        if fail_connection_list is not []:
+        if len(fail_connection_list) > 0:
             if len(fail_connection_list) == 1:
                 sentence = f'Failed to connect to control relay board {fail_connection_list[0]}.'
             else:
-                sentence = f'Failed to connect to control relay board AB adn AD.'
+                sentence = f'Failed to connect to control relay board AC adn AD.'
             raise RuntimeError(sentence)
 
     def _connect_to_serial(
             self,
             port,
             baudrate,
-            timeout=1,
-            verbose=False
+            timeout=1
             )-> serial.Serial:
         bytesize = serial.EIGHTBITS
         stopbits = serial.STOPBITS_ONE
@@ -90,9 +113,12 @@ class ControlRelay:
             bytesize=bytesize,
             stopbits=stopbits,
             parity=parity)
-        if verbose:
+        if self._verbose:
             border = "-" * 34 + "\n"
             print(
+                "\n",
+                border,
+                'Connection'.center(len(border)),
                 "\n",
                 border,
                 f"\tport:\t\t{port}\n"
@@ -111,6 +137,9 @@ class ControlRelay:
         time.sleep(0.1)
         ser.write(b'\x51')
         time.sleep(0.1)
+        ser.write(b'\xFF')
+        if self._verbose:
+            print(f'Configure relay board on {ser.port}.')
 
     def _get_port_and_id(self):
         # Seek for all connected device
@@ -147,7 +176,3 @@ class ControlRelay:
             print(f'data received:\t{data}\n'
                 f'data to hex:\t{bytearray(data).hex()}')
         return data
-
-
-if __name__ == "__main__":
-    pass

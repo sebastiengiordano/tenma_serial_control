@@ -21,6 +21,16 @@
                 "-g"
             ],
             "stopOnEntry": false
+        },
+        {
+            "name": "Python: Module - control_relay",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.control_relay",
+            "args": [
+                "-g"
+            ],
+            "stopOnEntry": false
         }
     ]
 }
