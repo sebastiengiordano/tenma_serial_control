@@ -1,3 +1,22 @@
+'''
+tenma_multimeter.py - a python script to access data from
+TENMA multimeters 72_7730A through their supplied optical cable via USB port.
+The Tenma_72_7730A_manage class provides the following king of measurement:
+    Voltage in Volt
+    Current in mA
+    Resistance in Ohm
+
+In order to known which kind of measurement the multimeter send,
+used the get_mode() method which send a string corresponding to
+the kind of measurement.
+
+In order to known the current value measured by the multimeter,
+used the get_measurement() method.
+
+When you end your treatment, in order to close propely the application,
+used the kill() method.
+'''
+
 import usb.core
 import usb.util
 import threading
@@ -7,8 +26,8 @@ from enum import Enum
 class MeasurementFunction(Enum):
     Voltage = 1
     Current = 8
-    Resistance = 3
-    UnImplemented = 4
+    Resistance = 4
+    UnImplemented = -1
 
 
 class OvfStatus(Enum):
@@ -20,28 +39,28 @@ class Tenma_72_7730A_manage(threading.Thread):
 
     def __init__(self, bcdDevice):
         threading.Thread.__init__(self)
-        self.device = None
-        self.configuration = None
-        self.interface = None
-        self.endpoint = None
-        self.multimeter_data = []
-        self.measurement = 0
-        self.mode = None
-        self.thread_run = True
+        self._device = None
+        self._configuration = None
+        self._interface = None
+        self._endpoint = None
+        self._multimeter_data = []
+        self._measurement = 0
+        self._mode = None
+        self._thread_run = True
 
         self._connect(bcdDevice)
 
     def _connect(self, bcdDevice):
         # Find our device
-        self.device = usb.core.find(bcdDevice=bcdDevice)
+        self._device = usb.core.find(bcdDevice=bcdDevice)
         # Get configuration
-        self.device.set_configuration()
-        self.configuration = self.device.get_active_configuration()
+        self._device.set_configuration()
+        self._configuration = self._device.get_active_configuration()
         # Get interface
-        self.interface = self.configuration[(0,0)]
+        self._interface = self._configuration[(0,0)]
         # Get endpoint
-        self.endpoint = usb.util.find_descriptor(
-            self.interface,
+        self._endpoint = usb.util.find_descriptor(
+            self._interface,
             custom_match = (
                 lambda e:
                     usb.util.endpoint_direction(e.bEndpointAddress)
@@ -51,26 +70,26 @@ class Tenma_72_7730A_manage(threading.Thread):
         # Enable HID communication
         packet = [0x60, 0x09, 0, 0, 3]
         packet = packet + (64 - len(packet)) * [0]
-        self.hid_set_report(packet)
+        self._hid_set_report(packet)
 
     def run(self):
-        while self.thread_run:
+        while self._thread_run:
             waiting_for_packet = True
-            self.multimeter_data = []
+            self._multimeter_data = []
             try:
                 while waiting_for_packet:
-                    data = self.device.read(
-                        self.endpoint.bEndpointAddress,
-                        self.endpoint.wMaxPacketSize)
+                    data = self._device.read(
+                        self._endpoint.bEndpointAddress,
+                        self._endpoint.wMaxPacketSize)
                     if list(data)[0] == 241:
-                        self.multimeter_data.append(list(data)[1] & 0xF)
+                        self._multimeter_data.append(list(data)[1] & 0xF)
                     # Check if all data have been received
                     if (
-                            len(self.multimeter_data) > 10
-                            and self.multimeter_data[-2] == 13
-                            and self.multimeter_data[-1] == 10):
-                        if len(self.multimeter_data) > 11:
-                            self.multimeter_data[-11:]
+                            len(self._multimeter_data) > 10
+                            and self._multimeter_data[-2] == 13
+                            and self._multimeter_data[-1] == 10):
+                        if len(self._multimeter_data) > 11:
+                            self._multimeter_data[-11:]
                         waiting_for_packet = False
                 self._decodePacket()
             except Exception as err:
@@ -81,7 +100,7 @@ class Tenma_72_7730A_manage(threading.Thread):
                     pass
                 else:
                     print()
-                    print(f'Error on device: {self.device}')
+                    print(f'Error on device: {self._device}')
                     print(err)
                     print(err.__class__)
                     print(err.__doc__)
@@ -89,16 +108,16 @@ class Tenma_72_7730A_manage(threading.Thread):
                     print()
 
     def kill(self):
-        self.thread_run = False
+        self._thread_run = False
 
     def get_measurement(self):
-        return self.measurement
+        return self._measurement
 
     def get_mode(self):
-        return self.mode.name
+        return self._mode.name
 
     def _getDigits(self):
-        dig = self.multimeter_data[0:5]
+        dig = self._multimeter_data[0:5]
         s = ""
         if( max(dig) > 10 ):
             #overflow
@@ -112,7 +131,7 @@ class Tenma_72_7730A_manage(threading.Thread):
 
     def _decodePacket(self):
         s, ovf = self._getDigits()
-        r = self.multimeter_data[5:11]
+        r = self._multimeter_data[5:11]
 
         rangeVal = r[0]
         modeVal = r[1]
@@ -121,20 +140,20 @@ class Tenma_72_7730A_manage(threading.Thread):
         mul = 1
         # Voltage (V)
         if modeVal == MeasurementFunction.Voltage.value:
-            self.mode = MeasurementFunction.Voltage
+            self._mode = MeasurementFunction.Voltage
             decimal = rangeVal
         # Current (mA)
         elif modeVal == MeasurementFunction.Current.value:
-            self.mode = MeasurementFunction.Current
+            self._mode = MeasurementFunction.Current
             decimal = (rangeVal + 1) % 3 + 1
             mul = 1000**((rangeVal + 1) // 3)
         # Resistance (Ohm)
         elif modeVal == MeasurementFunction.Resistance.value:
-            self.mode = MeasurementFunction.Resistance
+            self._mode = MeasurementFunction.Resistance
             decimal = (rangeVal + 1) % 3 + 1
             mul = 1000**((rangeVal + 1) // 3)
         else:
-            self.mode = MeasurementFunction.UnImplemented
+            self._mode = MeasurementFunction.UnImplemented
 
         if ovf == OvfStatus.NoOverFlow:
             val = float(s[:decimal] + "." + s[decimal:])
@@ -145,16 +164,16 @@ class Tenma_72_7730A_manage(threading.Thread):
             val *= -1
         val *= mul
 
-        self.measurement = val
+        self._measurement = val
 
-    def hid_set_report(self, report):
+    def _hid_set_report(self, report):
         """ Implements HID SetReport via USB control transfer """
 
-        self.device.ctrl_transfer(
+        self._device.ctrl_transfer(
             0x21,   # REQUEST_TYPE_CLASS | RECIPIENT_INTERFACE | ENDPOINT_OUT
             9,      # SET_REPORT
-            (self.configuration.bDescriptorType
+            (self._configuration.bDescriptorType
              * 0x100),                          # "Vendor" Descriptor Type + 0 Descriptor Index
-            self.interface.bInterfaceNumber,    # USB interface
+            self._interface.bInterfaceNumber,    # USB interface
             report  # the HID payload as a byte array -- e.g. from struct.pack()
         )
