@@ -121,6 +121,11 @@ class Tenma72Base(object):
 
         if self.DEBUG:
             print("<< ", out)
+            
+        if len(out) > 5:
+            out = out[:5]
+        elif len(out) == 0:
+            out = '0'
 
         return out
 
@@ -212,10 +217,13 @@ class Tenma72Base(object):
         readcurrent = self.readCurrent(channel)
 
         if int(readcurrent * 1000) != mA:
-            raise TenmaException("Set {set}mA, but read {read}mA".format(
-                set=mA,
-                read=readcurrent * 1000,
-            ))
+            self.__sendCommand(command)
+            readcurrent = self.readCurrent(channel)
+            if int(readcurrent * 1000) != mA:
+                raise TenmaException("Set {set}mA, but read {read}mA".format(
+                    set=mA,
+                    read=readcurrent * 1000,
+                ))
 
     def readVoltage(self, channel):
         if channel > self.NCHANNELS:
@@ -251,10 +259,13 @@ class Tenma72Base(object):
         readvolt = self.readVoltage(channel)
 
         if int(readvolt * 1000) != int(mV):
-            raise TenmaException("Set {set}mV, but read {read}mV".format(
-                set=mV,
-                read=readvolt * 1000,
-            ))
+            self.__sendCommand(command)
+            readvolt = self.readVoltage(channel)
+            if int(readvolt * 1000) != int(mV):
+                raise TenmaException("Set {set}mV, but read {read}mV".format(
+                    set=mV,
+                    read=readvolt * 1000,
+                ))
 
     def runningCurrent(self, channel):
         """
@@ -391,7 +402,6 @@ class Tenma72Base(object):
         conf = 1 if enable else 0
         command = "BEEP{conf}".format(conf=conf)
         self.__sendCommand(command)
-
 
     def ON(self):
         """

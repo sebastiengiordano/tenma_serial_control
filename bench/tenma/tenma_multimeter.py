@@ -1,6 +1,6 @@
 '''
 tenma_multimeter.py - a python script to access data from
-TENMA multimeters 72_7730A through their supplied optical cable via USB port.
+TENMA multimeters 72_7730A through their supplied IR cable via USB port.
 The Tenma_72_7730A_manage class provides the following king of measurement:
     Voltage in Volt
     Current in mA

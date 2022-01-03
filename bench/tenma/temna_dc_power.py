@@ -12,7 +12,7 @@ MAX_CURRENT = 60
 
 class Tenma_72_2535_manage:
 
-    def __init__(self, vendor_product_id='VID:PID=0416:5011'):
+    def __init__(self, vendor_product_id='VID:PID=0416:5011', debug=False):
         # Seek for all connected device
         available_serial_port = enumerate_serial()
         # Select the port
@@ -22,7 +22,7 @@ class Tenma_72_2535_manage:
         # Instantiate Tenma72_2535
         self.tenma72_2535 = Tenma72_2535(
             alim_serial_port,
-            debug=False)
+            debug=debug)
         # print(self.tenma72_2535.getVersion())
         self.comm_port_status = 'Open'
 

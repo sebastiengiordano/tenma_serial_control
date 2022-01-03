@@ -100,18 +100,18 @@ if __name__ == "__main__":
     logging = Logger()
     logging.set_column_width([40, 10, 10, 10, 10])
 
-    # dc_power.set_current(60)
+    dc_power.set_current(60)
     dc_power.power('ON')
 
     try:
-        for index, voltage_step in enumerate(range(200, 301, 50)):
+        for index, voltage_step in enumerate(range(10, 311, 10)):
             test_report = []
             sentence = f'- Test n°{index} with voltage_step = {voltage_step} -'
             frame = '-' * len(sentence)
             print('\n\t', frame)
             print('\t', sentence)
             print('\t', frame, '\n')
-            for time_after_set_voltage in range(100, 150, 20):
+            for time_after_set_voltage in range(10, 500, 30):
                 # test init
                 delta = []
                 dc_power.set_voltage(2800)
@@ -119,13 +119,13 @@ if __name__ == "__main__":
                 for voltage in range(2800, 3501, voltage_step):
                     dc_power.set_voltage(voltage)
                     time.sleep(time_after_set_voltage / 1000)
-                    measurement = int(multimeter.get_measurement() * 1000)
-                    delta.append(voltage - measurement)
+                    measurement = int(multimeter.get_measurement())
+                    delta.append(voltage / 400 - measurement)
                 delta_mean_value = sum(delta)/len(delta)
                 strange_value = [strange_value for strange_value in delta \
                         if \
-                            strange_value > delta_mean_value * 1.2 \
-                            or strange_value < delta_mean_value * 0.8 \
+                            abs(strange_value) > abs(delta_mean_value) * 1.2 \
+                            or abs(strange_value) < abs(delta_mean_value) * 0.8 \
                         ]
                 print(
                     f'{time_after_set_voltage}\t'
@@ -141,6 +141,7 @@ if __name__ == "__main__":
                     min(delta),
                     max(delta),
                     strange_value])
+
             logging.add_lines_to_logging_file([''])
             logging.add_lines_to_logging_file([sentence])
 
@@ -168,7 +169,6 @@ if __name__ == "__main__":
             data.extend([x[4] for x in test_report])
             data.extend(['Test OK'])
             logging.add_lines_to_logging_file(data)
-        logging.stop_logging(f'Test {index} with voltage_step = {voltage_step}')
 
     except Exception as err:
                     print()
@@ -177,7 +177,14 @@ if __name__ == "__main__":
                     print(err.__doc__)
                     print(err.__dict__)
                     print()
+                    logging.add_lines_to_logging_file([''])
+                    logging.add_lines_to_logging_file([f'{err}'])
+                    logging.add_lines_to_logging_file([f'{err.__class__}'])
+                    logging.add_lines_to_logging_file([f'{err.__doc__}'])
+                    logging.add_lines_to_logging_file([f'{err.__dict__}'])
+                    logging.add_lines_to_logging_file([''])
 
+    logging.stop_logging(f'Test {index} with voltage_step = {voltage_step}')
     dc_power.power('OFF')
     dc_power.disconnect()
     multimeter.kill()
