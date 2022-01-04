@@ -80,7 +80,7 @@ class Logger:
                 for c, col in enumerate(row):
                     if col == 'Test OK':
                         choice_format = cell_format_ok
-                    elif col == 'Test NOK':
+                    elif col == 'Test NOK' or col == 'Exception occurs':
                         choice_format = cell_format_nok
                     else:
                         choice_format = cell_format
