@@ -5,6 +5,7 @@ from bench.control_relay.control_relay import ControlRelay
 from bench.tenma.tenma_dc_power import Tenma_72_2535_manage
 from bench.tenma.tenma_multimeter import Tenma_72_7730A_manage
 from bench.logger.logger import Logger
+from bench.bms3_interface.bms3_command import BMS3Command
 
 from bench.utils.utils import State, ConnectionState
 
@@ -31,6 +32,8 @@ class Bms3Sequencer(threading.Thread):
         self._set_logger()
         # Set HAL
         self._set_hal()
+        # Set BMS3 interface
+        self._bms3_interface = BMS3Command()
         # Set other variables
         self._test_in_progress = True
         self._test_count = 0
@@ -301,17 +304,23 @@ class Bms3Sequencer(threading.Thread):
         self._tenma_alim_state = ConnectionState.Disconnected
         self._isolated_alim_state = ConnectionState.Disconnected
         self._tenma_dc_power_state = State.Disable
+        self._bms3_state = ConnectionState.Disconnected
 
     # BMS3 interface
     def _load_firmware(self, firmware_label):
-        raise NotImplementedError
+        self.connect_reprog()
+        if self._bms3_state == ConnectionState.Disconnected:
+            self._bms3_interface.connect_to_bms3()
+            self._bms3_state = ConnectionState.Connected
+        self._bms3_interface.load_firmware(firmware_label)
+        self.disconnect_reprog()
 
     def _get_bms3_voltage_measurement(self):
         self.connect_debug_rx()
         self.connect_debug_tx()
+        raise NotImplementedError
         self.disconnect_debug_rx()
         self.disconnect_debug_tx()
-        raise NotImplementedError
 
     # HMI
     def _ask_for_board_number(self):
