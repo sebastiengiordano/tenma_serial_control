@@ -6,7 +6,7 @@ from time import sleep
 
 from .stm32loader import CommandInterface, CmdException
 
-ADDRESS = 
+ADDRESS = 0x08000000
 
 
 class BMS3Command:
@@ -26,7 +26,6 @@ class BMS3Command:
                     )
                 self._command.set_serial(ser)
                 self._command.cmdGetVersion()
-                return ser
             except:
                 pass
         raise CmdException('Impossible de se connecter à la BMS3.')
@@ -45,6 +44,13 @@ class BMS3Command:
             firmware)
         data = map(lambda c: ord(c), open(firmware_path, 'rb').read())
         self._command.writeMemory(ADDRESS, data)
+        # Check if the firmware is well loaded
+        verify = self._command.readMemory(ADDRESS, len(data))
+        self._command.releaseChip()
+        if(data == verify):
+            return True
+        else:
+            return False
 
     def _connect_to_serial(
             self,
