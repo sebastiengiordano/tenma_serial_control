@@ -1,9 +1,9 @@
 import serial
-import time
+from time import sleep
 
 from ..utils.utils import (
     enumerate_serial, get_all_serial_with_hwid,
-    RelayState)
+    State)
 
 class ControlRelay:
     baudrate = 9600
@@ -19,7 +19,7 @@ class ControlRelay:
         self._configure_relay_board(self._control_relay_ac)
         self._configure_relay_board(self._control_relay_ad)
 
-    def manage_relay(self, board: str, relay: int, state: RelayState):
+    def manage_relay(self, board: str, relay: int, state: State):
         if relay not in range(1, 9):
             raise ValueError('Relay could only be in range 1 to 8.')
         if board not in ['AC', 'AD']:
@@ -128,15 +128,15 @@ class ControlRelay:
                 f"\tstopbits:\t{stopbits}\n",
                 f"\tparity:\t{parity}\n",
                 border)
-        time.sleep(0.5)
+        sleep(0.5)
         return ser
 
     def _configure_relay_board(self, ser: serial.Serial):
         '''Start communication with relay board.'''
         ser.write(b'\x50')
-        time.sleep(0.1)
+        sleep(0.1)
         ser.write(b'\x51')
-        time.sleep(0.1)
+        sleep(0.1)
         ser.write(b'\xFF')
         if self._verbose:
             print(f'Configure relay board on {ser.port}.')
@@ -163,8 +163,8 @@ class ControlRelay:
             self,
             current_command: int,
             relay: int,
-            state: RelayState):
-        if state == RelayState.Enable:
+            state: State):
+        if state == State.Enable:
             update_command = current_command - 2**(relay - 1)
         else:
             update_command = current_command + 2**(relay - 1)

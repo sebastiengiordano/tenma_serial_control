@@ -33,7 +33,7 @@
 """
 
 import serial
-import time
+from time import sleep
 
 
 class TenmaException(Exception):
@@ -96,7 +96,7 @@ class Tenma72Base(object):
             print(">> ", command)
         self.ser.write(command.encode('ascii'))
         # Give it time to process
-        time.sleep(0.2)
+        sleep(0.2)
 
     def __readBytes(self):
         """

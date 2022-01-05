@@ -1,4 +1,4 @@
-
+from time import sleep
 # Import tenma library
 from .tenmaDcLib import instantiate_tenma_class_from_device_response, TenmaException
 from .tenmaDcLib import Tenma72_2535
@@ -8,6 +8,7 @@ from ..utils.utils import enumerate_serial, autoselect_serial
 
 MAX_VOLTAGE = 3500
 MAX_CURRENT = 60
+WAIT_AFTER_SETTING = 1500
 
 
 class Tenma_72_2535_manage:
@@ -49,6 +50,7 @@ class Tenma_72_2535_manage:
         #  Value shall be a mulitple of 10mV
         value = value // 10 * 10
         self.tenma72_2535.setVoltage(channel, value)
+        sleep(WAIT_AFTER_SETTING)
         return value
 
     def set_current(self, value: int=0, channel: int=1)-> int:
@@ -57,6 +59,7 @@ class Tenma_72_2535_manage:
         if value > MAX_CURRENT:
             value = MAX_CURRENT
         self.tenma72_2535.setCurrent(channel, value)
+        sleep(WAIT_AFTER_SETTING)
         return value
 
     def disconnect(self):

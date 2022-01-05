@@ -1,4 +1,4 @@
-from .tenma.temna_dc_power import Tenma_72_2535_manage
+from .tenma.tenma_dc_power import Tenma_72_2535_manage
 from .tenma.tenma_multimeter import MeasurementFunction, Tenma_72_7730A_manage
 
 from os.path import dirname, join as os_path_join, exists, isfile
@@ -90,7 +90,7 @@ def _file_number_padding(index: int) -> str:
 
 
 if __name__ == "__main__":
-    import time
+    from time import sleep
     # import usb.core
     # import usb.util
 
@@ -115,10 +115,10 @@ if __name__ == "__main__":
                 # test init
                 delta = []
                 dc_power.set_voltage(2800)
-                time.sleep(.5)
+                sleep(.5)
                 for voltage in range(2800, 3501, voltage_step):
                     dc_power.set_voltage(voltage)
-                    time.sleep(time_after_set_voltage / 1000)
+                    sleep(time_after_set_voltage / 1000)
                     measurement = int(multimeter.get_measurement())
                     delta.append(voltage / 400 - measurement)
                 delta_mean_value = sum(delta)/len(delta)
