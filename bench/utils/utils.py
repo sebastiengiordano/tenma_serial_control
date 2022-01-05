@@ -43,6 +43,11 @@ def get_all_serial_with_hwid(available_serial_port, patterns=("STM", "STLink")):
     return all_serial_with_hwid
 
 
-class RelayState(Enum):
+class State(Enum):
     Enable = 'Enable'
     Disable = 'Disable'
+
+
+class ConnectionState(Enum):
+    Connected = 'Connected'
+    Disconnected = 'Disconnected'
