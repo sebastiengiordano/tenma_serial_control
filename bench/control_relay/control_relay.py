@@ -5,9 +5,10 @@ from ..utils.utils import (
     enumerate_serial, get_all_serial_with_hwid,
     State)
 
+
 class ControlRelay:
     baudrate = 9600
-    
+
     def __init__(self, verbose=False):
         # Set debug flag
         self._verbose = verbose
@@ -92,17 +93,20 @@ class ControlRelay:
             fail_connection_list.append('AD')
         if len(fail_connection_list) > 0:
             if len(fail_connection_list) == 1:
-                sentence = f'Failed to connect to control relay board {fail_connection_list[0]}.'
+                sentence = (
+                    'Failed to connect to control relay board '
+                    f'{fail_connection_list[0]}.')
             else:
-                sentence = f'Failed to connect to control relay board AC adn AD.'
+                sentence = (
+                    'Failed to connect to control relay board AC adn AD.')
             raise RuntimeError(sentence)
 
     def _connect_to_serial(
             self,
-            port,
-            baudrate,
-            timeout=1
-            )-> serial.Serial:
+            port: str,
+            baudrate: int,
+            timeout: int = 1
+            ) -> serial.Serial:
         bytesize = serial.EIGHTBITS
         stopbits = serial.STOPBITS_ONE
         parity = serial.PARITY_NONE
@@ -141,22 +145,24 @@ class ControlRelay:
         if self._verbose:
             print(f'Configure relay board on {ser.port}.')
 
-    def _get_port_and_id(self):
+    def _get_port_and_id(self) -> list(tuple(str)):
         # Seek for all connected device
         available_serial_port = enumerate_serial()
         # Select the port
-        port_list = get_all_serial_with_hwid(available_serial_port, ('VID:PID=0403:6011',))
+        port_list = get_all_serial_with_hwid(
+            available_serial_port,
+            ('VID:PID=0403:6011',))
         port_and_id = []
         for port, desc, hwid in available_serial_port:
             if port in port_list:
                 port_and_id.append((port, hwid[-2:].upper()))
         return port_and_id
 
-    def _send_command(self, ser: serial.Serial, value):
+    def _send_command(self, ser: serial.Serial, value: int):
         command = self._format_command(value)
         ser.write(command)
 
-    def _format_command(self, value):
+    def _format_command(self, value: int) -> bytearray:
         return bytearray([value])
 
     def _update_command(
@@ -170,9 +176,10 @@ class ControlRelay:
             update_command = current_command + 2**(relay - 1)
         return update_command
 
-    def _read_port_com(self, ser: serial.Serial, verbose=False):
+    def _read_port_com(self, ser: serial.Serial, verbose=False) -> str:
         data = ser.readline()
         if verbose:
-            print(f'data received:\t{data}\n'
+            print(
+                f'data received:\t{data}\n'
                 f'data to hex:\t{bytearray(data).hex()}')
         return data

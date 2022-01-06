@@ -1,6 +1,5 @@
 from time import sleep
-# Import tenma library
-from .tenmaDcLib import instantiate_tenma_class_from_device_response, TenmaException
+
 from .tenmaDcLib import Tenma72_2535
 
 from ..utils.utils import enumerate_serial, autoselect_serial
@@ -27,7 +26,7 @@ class Tenma_72_2535_manage:
         # print(self.tenma72_2535.getVersion())
         self.comm_port_status = 'Open'
 
-    def power(self, state: str, verbose=False)-> str:
+    def power(self, state: str, verbose=False) -> str:
         if state == 'ON':
             self.tenma72_2535.ON()
         elif state == 'OFF':
@@ -42,7 +41,7 @@ class Tenma_72_2535_manage:
         self.state = state
         return state
 
-    def set_voltage(self, value: int=0, channel: int=1)-> int:
+    def set_voltage(self, value: int = 0, channel: int = 1) -> int:
         '''Set the voltage value (in mV)'''
 
         if value > MAX_VOLTAGE:
@@ -53,7 +52,7 @@ class Tenma_72_2535_manage:
         sleep(WAIT_AFTER_SETTING)
         return value
 
-    def set_current(self, value: int=0, channel: int=1)-> int:
+    def set_current(self, value: int = 0, channel: int = 1) -> int:
         '''Set the current value (in mA)'''
 
         if value > MAX_CURRENT:

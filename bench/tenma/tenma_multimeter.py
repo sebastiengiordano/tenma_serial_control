@@ -57,11 +57,11 @@ class Tenma_72_7730A_manage(threading.Thread):
         self._device.set_configuration()
         self._configuration = self._device.get_active_configuration()
         # Get interface
-        self._interface = self._configuration[(0,0)]
+        self._interface = self._configuration[(0, 0)]
         # Get endpoint
         self._endpoint = usb.util.find_descriptor(
             self._interface,
-            custom_match = (
+            custom_match=(
                 lambda e:
                     usb.util.endpoint_direction(e.bEndpointAddress)
                     == usb.util.ENDPOINT_IN
@@ -119,13 +119,13 @@ class Tenma_72_7730A_manage(threading.Thread):
     def _getDigits(self):
         dig = self._multimeter_data[0:5]
         s = ""
-        if( max(dig) > 10 ):
-            #overflow
+        if(max(dig) > 10):
+            # Overflow
             ovf = OvfStatus.OverFlow
         else:
             ovf = OvfStatus.NoOverFlow
             for i in dig:
-                if( i < 10 ):
+                if(i < 10):
                     s += str(i)
         return s, ovf
 
@@ -170,10 +170,15 @@ class Tenma_72_7730A_manage(threading.Thread):
         """ Implements HID SetReport via USB control transfer """
 
         self._device.ctrl_transfer(
-            0x21,   # REQUEST_TYPE_CLASS | RECIPIENT_INTERFACE | ENDPOINT_OUT
-            9,      # SET_REPORT
+            # REQUEST_TYPE_CLASS | RECIPIENT_INTERFACE | ENDPOINT_OUT
+            0x21,
+            # SET_REPORT
+            9,
+            # "Vendor" Descriptor Type + 0 Descriptor Index
             (self._configuration.bDescriptorType
-             * 0x100),                          # "Vendor" Descriptor Type + 0 Descriptor Index
-            self._interface.bInterfaceNumber,    # USB interface
-            report  # the HID payload as a byte array -- e.g. from struct.pack()
+             * 0x100),
+            # USB interface
+            self._interface.bInterfaceNumber,
+            # the HID payload as a byte array -- e.g. from struct.pack()
+            report
         )

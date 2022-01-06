@@ -91,14 +91,14 @@ class Logger:
         # Update logging file's name
         self._generate_logging_file_path()
 
-    def set_logging_name(self, logging_name):
+    def set_logging_name(self, logging_name: str):
         self._logging_logging_name = '_' + logging_name + '_'
         self._generate_logging_file_path()
 
-    def set_column_width(self, columns_width=[]):
+    def set_column_width(self, columns_width: list = []):
         self._columns_width = columns_width
 
-    def _set_cell_format(self, bg_color=''):
+    def _set_cell_format(self, bg_color: str = ''):
         cell_format = self._workbook.add_format()
         cell_format.set_align('right')
         cell_format.set_align('vcenter')
@@ -107,7 +107,7 @@ class Logger:
             cell_format.set_bg_color(bg_color)
         return cell_format
 
-    def _files_in_folder(self, folder_path: str ) -> list:
+    def _files_in_folder(self, folder_path: str) -> list:
         '''Return the list of all files in folder_path and its subfolder'''
         files_in_folder_path = []
         # Loop on all files or directories inside folder_path
@@ -155,7 +155,7 @@ class Logger:
                 + self._logging_logging_name
                 + self._file_number_padding(i)
                 )
-            file_name_csv = file_name  + ".csv"
+            file_name_csv = file_name + ".csv"
             file_name_xlsx = file_name + ".xlsx"
             if (
                     file_name_csv not in logging_files_list
@@ -167,7 +167,6 @@ class Logger:
                 break
 
     def _file_number_padding(self, index: int) -> str:
-        
         if index < 10:
             return "000" + str(index)
         elif index < 100:
@@ -177,7 +176,7 @@ class Logger:
         else:
             return str(index)
 
-    def _check_folder_exist_or_create(self, dir):
+    def _check_folder_exist_or_create(self, dir: str):
         '''
         From an absolute path, create the folder if it doesn't already exist
         '''
