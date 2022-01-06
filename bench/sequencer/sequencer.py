@@ -145,6 +145,8 @@ class Bms3Sequencer(threading.Thread):
             self._ask_for_board_number()
             # BMS3 load "post prod test" firmware
             self._load_firmware('BMS_3.0_v3_v01.11_post_prod_test')
+            # BMS3 wake up
+            self.bms3_wake_up()
             # Test: Battery voltage measurement
             self._battery_voltage_measurement_test()
             # Test: Preamplifier test
@@ -166,18 +168,37 @@ class Bms3Sequencer(threading.Thread):
             self.disable_all_relay()
 
     def _battery_voltage_measurement_test(self):
-        self.bms3_wake_up()
-        bms3_volt_measurement = self._get_bms3_voltage_measurement()
-        volt_measurement = self._voltmeter.get_measurement()
-        measurement_threshold = volt_measurement * MEASUREMENT_TOLERANCE / 100
-        if (
-                bms3_volt_measurement < volt_measurement + measurement_threshold
-                and
-                bms3_volt_measurement > volt_measurement - measurement_threshold):
+        test_report_status = []
+        voltage_to_check = [
+            3500,
+            3150,
+            2800]
+        for voltage in voltage_to_check:
+            self._tenma_dc_set_voltage(voltage)
+            test_report_status.append(
+                self._battery_voltage_measurement_check()
+            )
+        if False not in test_report_status:
             self._test_report['Battery voltage measurement'] = 'Test OK'
 
+    def _battery_voltage_measurement_check(self) -> bool:
+        volt_measurement = self._voltmeter.get_measurement()
+        bms3_volt_measurement = self._get_bms3_voltage_measurement()
+        threshold = volt_measurement * MEASUREMENT_TOLERANCE / 100
+        measurement_high_threshold = volt_measurement + threshold
+        measurement_low_threshold = volt_measurement - threshold
+        if (
+                bms3_volt_measurement < measurement_high_threshold
+                and
+                bms3_volt_measurement > measurement_low_threshold):
+            return True
+        else:
+            return False
+
     def _preamplifier_test(self):
-        raise NotImplementedError
+        self.activate_current_measurement()
+        self.connect_low_load()
+        
 
     def _current_consomption_in_sleep_mode_test(self):
         raise NotImplementedError
@@ -204,7 +225,7 @@ class Bms3Sequencer(threading.Thread):
             columns_width=LOG_COLUMNS_WIDTH)
         self._test_report = self._init_test_report()
 
-    def _init_test_report(self):
+    def _init_test_report(self) -> dict:
         return {
             'Board number': 'Not Defined',
             'Battery voltage measurement': 'Test NOK',
@@ -308,19 +329,26 @@ class Bms3Sequencer(threading.Thread):
 
     # BMS3 interface
     def _load_firmware(self, firmware_label):
+        self.connect_tenma_alim()
+        self._tenma_dc_set_voltage(3333)
+        self._tenma_dc_power_on()
+        self.press_push_in_button()
         self.connect_reprog()
         if self._bms3_state == ConnectionState.Disconnected:
             self._bms3_interface.connect_to_bms3()
             self._bms3_state = ConnectionState.Connected
         self._bms3_interface.load_firmware(firmware_label)
         self.disconnect_reprog()
+        self.release_push_in_button()
+        self._tenma_dc_power_off()
 
-    def _get_bms3_voltage_measurement(self):
+    def _get_bms3_voltage_measurement(self) -> int:
         self.connect_debug_rx()
         self.connect_debug_tx()
-        raise NotImplementedError
+        voltage_measurement = self._bms3_interface.read_debug_tx()
         self.disconnect_debug_rx()
         self.disconnect_debug_tx()
+        return int(voltage_measurement)
 
     # HMI
     def _ask_for_board_number(self):
@@ -354,7 +382,7 @@ class Bms3Sequencer(threading.Thread):
         self._logger.add_lines_to_logging_file([f'{err.__doc__}'])
         self._logger.add_lines_to_logging_file([f'{err.__dict__}'])
 
-    def _check_bms3_number_format(self, bms3_number):
+    def _check_bms3_number_format(self, bms3_number) -> bool:
         if not bms3_number:
             message = (
                 '\n\t'
@@ -394,7 +422,6 @@ class Bms3Sequencer(threading.Thread):
     def _tenma_dc_power_on(self):
         if self._tenma_dc_power_state == State.Disable:
             self._tenma_dc_power_state == State.Enable
-            self._tenma_dc_power.set_voltage(0)
             self._tenma_dc_power.power('ON')
 
     def _tenma_dc_power_off(self):
@@ -403,5 +430,5 @@ class Bms3Sequencer(threading.Thread):
             self._tenma_dc_power.set_voltage(0)
             self._tenma_dc_power.power('OFF')
 
-    def _tenma_dc_set_voltage(self, value):
+    def _tenma_dc_set_voltage(self, value) -> int:
         return self._tenma_dc_power.set_voltage(value)
