@@ -110,10 +110,10 @@ class Tenma_72_7730A_manage(threading.Thread):
     def kill(self):
         self._thread_run = False
 
-    def get_measurement(self):
+    def get_measurement(self) -> int:
         return self._measurement
 
-    def get_mode(self):
+    def get_mode(self) -> str:
         return self._mode.name
 
     def _getDigits(self):

@@ -1,3 +1,12 @@
+'''
+This module aims to drive control relay board through serial port.
+
+Those serial port are emulated with chip driver
+which could be recognized thank to its VID/PID.
+Then, with the hardware ID of each serial port,
+the control boards are identified.
+'''
+
 import serial
 from time import sleep
 

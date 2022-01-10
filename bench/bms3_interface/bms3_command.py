@@ -1,3 +1,8 @@
+'''
+This module aims to manage BMS3 firmware download and to read data
+send by BMS3 in its DEBUG_TX output.
+'''
+
 from os.path import dirname, join as os_path_join, isfile
 from os import listdir
 import serial
