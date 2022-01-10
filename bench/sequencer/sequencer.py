@@ -9,7 +9,18 @@ from bench.bms3_interface.bms3_command import BMS3Command
 
 from bench.utils.utils import State, ConnectionState
 
-MEASUREMENT_TOLERANCE = 10
+VOLTAGE_MEASUREMENT_TOLERANCE = 5               # %
+PREAMP_VOLTAGE_TOLERANCE = 100                  # mV
+NO_LOAD_CURRENT_HIGH_THRESHOLD = 0.01           # mA
+NO_LOAD_CURRENT_LOW_THRESHOLD = 0.001           # mA
+LOW_LOAD_CURRENT_HIGH_THRESHOLD = 28            # mA
+LOW_LOAD_CURRENT_LOW_THRESHOLD = 32             # mA
+HIGH_LOAD_CURRENT_HIGH_THRESHOLD = 1            # mA
+HIGH_LOAD_CURRENT_LOW_THRESHOLD = 1.1           # mA
+HIGH_LOAD_CURRENT_HIGH_THRESHOLD = 1            # mA
+HIGH_LOAD_CURRENT_LOW_THRESHOLD = 1.1           # mA
+BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = -50     # mA
+BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = -100     # mA
 
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
@@ -45,6 +56,7 @@ class Bms3Sequencer(threading.Thread):
         while self._test_in_progress:
             self._test_sequence()
 
+    # DC power
     def connect_tenma_alim(self):
         if self._tenma_alim_state == ConnectionState.Disconnected:
             self._tenma_alim_state == ConnectionState.Connected
@@ -67,6 +79,7 @@ class Bms3Sequencer(threading.Thread):
             self._isolated_alim_state == ConnectionState.Disconnected
             self._desactivate_relay(self._relay_isolated_alim)
 
+    # BMS3 input management
     def press_push_in_button(self):
         self._activate_relay(self._relay_push_in)
 
@@ -78,7 +91,7 @@ class Bms3Sequencer(threading.Thread):
         self._tenma_dc_power_on()
         self._tenma_dc_set_voltage(3500)
         self.press_push_in_button()
-        sleep(500)
+        sleep(0.5)
         self.release_push_in_button()
 
     def activate_jmp_18_v(self):
@@ -86,26 +99,6 @@ class Bms3Sequencer(threading.Thread):
 
     def desactivate_jmp_18_v(self):
         self._desactivate_relay(self._relay_jmp_18_v)
-
-    def connect_low_load(self):
-        self._activate_relay(self._relay_low_load)
-        self._desactivate_relay(self._relay_high_load)
-
-    def connect_high_load(self):
-        self._activate_relay(self._relay_high_load)
-        self._desactivate_relay(self._relay_low_load)
-
-    def disconnect_load(self):
-        self._desactivate_relay(self._relay_low_load)
-        self._desactivate_relay(self._relay_high_load)
-
-    def activate_current_measurement(self):
-        self._activate_relay(self._relay_current_measurement_in)
-        self._activate_relay(self._relay_current_measurement_out)
-
-    def desactivate_current_measurement(self):
-        self._desactivate_relay(self._relay_current_measurement_in)
-        self._desactivate_relay(self._relay_current_measurement_out)
 
     def connect_debug_tx(self):
         self._activate_relay(self._relay_debug_tx)
@@ -129,7 +122,39 @@ class Bms3Sequencer(threading.Thread):
         self._desactivate_relay(self._relay_nrst)
         self._desactivate_relay(self._relay_swdio)
 
-    def disable_all_relay(self):
+    # Connect/disconnected preamplifier
+    def connect_low_load(self):
+        self._activate_relay(self._relay_low_load)
+        self._desactivate_relay(self._relay_high_load)
+
+    def connect_high_load(self):
+        self._activate_relay(self._relay_high_load)
+        self._desactivate_relay(self._relay_low_load)
+
+    def disconnect_load(self):
+        self._desactivate_relay(self._relay_low_load)
+        self._desactivate_relay(self._relay_high_load)
+
+    # Connect/disconnected measurement tools
+    def activate_current_measurement(self):
+        self._activate_relay(self._relay_current_measurement_in)
+        self._activate_relay(self._relay_current_measurement_out)
+
+    def desactivate_current_measurement(self):
+        self._desactivate_relay(self._relay_current_measurement_in)
+        self._desactivate_relay(self._relay_current_measurement_out)
+
+    # Connect/disconnected USB (Vcc/ Ground)
+    def connect_usb_power(self):
+        self._activate_relay(self._relay_usb_vcc)
+        self._activate_relay(self._relay_usb_ground)
+
+    def disconnect_usb_power(self):
+        self._desactivate_relay(self._relay_usb_vcc)
+        self._desactivate_relay(self._relay_usb_ground)
+
+    # Disable all relays
+    def disable_all_relays(self):
         for relay in self._relay_list:
             if relay['state'] == State.Enable:
                 self._desactivate_relay(relay)
@@ -143,71 +168,241 @@ class Bms3Sequencer(threading.Thread):
         try:
             # Ask for board number
             self._ask_for_board_number()
+
             # BMS3 load "post prod test" firmware
             self._load_firmware('BMS_3.0_v3_v01.11_post_prod_test')
+
             # BMS3 wake up
             self.bms3_wake_up()
+
             # Test: Battery voltage measurement
             self._battery_voltage_measurement_test()
+
             # Test: Preamplifier test
             self._preamplifier_test()
+
             # Test: Current consomption in sleep mode
             self._current_consomption_in_sleep_mode_test()
+
             # Test: Battery charge
             self._battery_charge_test()
+
             # Test: LED colors
             self._led_colors_test()
+
             # BMS3 load "customer" firmware BMS_3.0_v3_v01.11
             self._load_firmware('BMS_3.0_v3_v01.11')
+
         except Exception as err:
             self._add_exception_to_log(err)
+
         finally:
             # Update log file
             self._update_log()
+
             # Disable all relay
-            self.disable_all_relay()
+            self.disable_all_relays()
 
     def _battery_voltage_measurement_test(self):
+        # Init test
         test_report_status = []
         voltage_to_check = [
             3500,
             3150,
             2800]
+
+        # BMS3 battery voltage measurement tests
         for voltage in voltage_to_check:
             self._tenma_dc_set_voltage(voltage)
             test_report_status.append(
-                self._battery_voltage_measurement_check()
-            )
+                self._battery_voltage_measurement_check())
+
+        # Evaluate test reports status
         if False not in test_report_status:
-            self._test_report['Battery voltage measurement'] = 'Test OK'
+            self._test_report[
+                'Battery voltage measurement'][
+                    'status'] = 'Test OK'
 
     def _battery_voltage_measurement_check(self) -> bool:
-        volt_measurement = self._voltmeter.get_measurement()
-        bms3_volt_measurement = self._get_bms3_voltage_measurement()
-        threshold = volt_measurement * MEASUREMENT_TOLERANCE / 100
-        measurement_high_threshold = volt_measurement + threshold
-        measurement_low_threshold = volt_measurement - threshold
+        # Get measurements
+        voltage_measurement = self._voltmeter.get_measurement()
+        bms3_voltage_measurement = self._get_bms3_voltage_measurement()
+
+        # Set voltage threshold
+        threshold = voltage_measurement * VOLTAGE_MEASUREMENT_TOLERANCE / 100
+        measurement_high_threshold = voltage_measurement + threshold
+        measurement_low_threshold = voltage_measurement - threshold
+
+        # Add measurement values to test report
+        self._test_report['Battery voltage measurement']['values'].append(
+            str(bms3_voltage_measurement)
+            + ' / '
+            + str(voltage_measurement))
+
+        # Check measurement values
         if (
-                bms3_volt_measurement < measurement_high_threshold
+                bms3_voltage_measurement < measurement_high_threshold
                 and
-                bms3_volt_measurement > measurement_low_threshold):
+                bms3_voltage_measurement > measurement_low_threshold):
             return True
         else:
             return False
 
     def _preamplifier_test(self):
+        # Init test
+        test_report_status = []
         self.activate_current_measurement()
+        # Need to know if the bench used a third multimeter
+        # or if it used more relay in order to used only one multimeter
+        raise NotImplementedError
+
+        # Connected low load and check BMS3 behavior
         self.connect_low_load()
-        
+        sleep(.5)
+        test_report_status.append(
+            self._preamplifier_test_check(
+                9000,
+                LOW_LOAD_CURRENT_LOW_THRESHOLD,
+                LOW_LOAD_CURRENT_HIGH_THRESHOLD))
+
+        # Disconnected low load
+        self.disconnect_load()
+        sleep(.5)
+
+        # Connected high load and check BMS3 behavior
+        self.connect_high_load()
+        sleep(.5)
+        test_report_status.append(
+            self._preamplifier_test_check(
+                9000,
+                HIGH_LOAD_CURRENT_LOW_THRESHOLD,
+                HIGH_LOAD_CURRENT_HIGH_THRESHOLD))
+
+        # Evaluate test reports status
+        if False not in test_report_status:
+            self._test_report[
+                'Preamplifier test'][
+                    'status'] = 'Test OK'
+
+        # End preamplifier test
+        self.disconnect_load()
+        sleep(.5)
+
+    def _preamplifier_test_check(
+            self,
+            voltage_to_check,
+            current_low_threshold,
+            current_high_threshold):
+        # Get measurements
+        voltage_measurement = self._voltmeter.get_measurement()
+        current_measurement = self._ampmeter.get_measurement()
+
+        # Set voltage threshold
+        voltage_high_threshold = voltage_to_check + PREAMP_VOLTAGE_TOLERANCE
+        voltage_low_threshold = voltage_to_check - PREAMP_VOLTAGE_TOLERANCE
+
+        # Add measurement values to test report
+        self._test_report['Preamplifier test']['voltage values'].append(
+            str(voltage_measurement)
+            + ' / '
+            + str(voltage_to_check))
+        self._test_report['Preamplifier test']['current values'].append(
+            str(current_measurement)
+            + ' / '
+            + str(current_low_threshold)
+            + ' / '
+            + str(current_high_threshold))
+
+        # Check measurement values
+        if (
+                (
+                    voltage_measurement < voltage_high_threshold
+                    and
+                    voltage_measurement > voltage_low_threshold)
+                and
+                (
+                    current_measurement < current_high_threshold
+                    and
+                    current_measurement > current_low_threshold
+                )):
+            return True
+        else:
+            return False
 
     def _current_consomption_in_sleep_mode_test(self):
-        raise NotImplementedError
+        # Get measurement
+        current_measurement = self._ampmeter.get_measurement()
+
+        # Add measurement values to test report
+        self._test_report['Current consomption in sleep mode']['value'].append(
+            str(current_measurement)
+            + ' / '
+            + str(NO_LOAD_CURRENT_LOW_THRESHOLD)
+            + ' / '
+            + str(NO_LOAD_CURRENT_HIGH_THRESHOLD))
+
+        # Check measurement values
+        if (
+                current_measurement < NO_LOAD_CURRENT_HIGH_THRESHOLD
+                and
+                current_measurement > NO_LOAD_CURRENT_LOW_THRESHOLD):
+            self._test_report[
+                'Current consomption in sleep mode'][
+                    'status'] = 'Test OK'
 
     def _battery_charge_test(self):
-        raise NotImplementedError
+        # Init test
+        self.connect_isolated_alim()
+        self.connect_usb_power()
+        sleep(0.5)
+
+        # Get measurement
+        current_measurement = self._ampmeter.get_measurement()
+        self._test_report[
+                'Battery charge'][
+                    'value'] = current_measurement
+
+        # Check measurement values
+        if (
+                current_measurement < BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD
+                and
+                current_measurement > BATTERY_CHARGE_CURRENT_LOW_THRESHOLD):
+            self._test_report[
+                'Battery charge'][
+                    'status'] = 'Test OK'
 
     def _led_colors_test(self):
-        raise NotImplementedError
+        self._led_colors_check(
+            '\n\t'
+            'Est-ce que la LED bleue est allumée '
+            'et sa couleur conforme ? (y/n)',
+            'status_blue')
+        self._led_colors_check(
+            '\n\t'
+            'Est-ce que la LED verte est allumée '
+            'et sa couleur conforme ? (y/n)',
+            'status_green')
+        self._led_colors_check(
+            '\n\t'
+            'Est-ce que la LED rouge est allumée '
+            'et sa couleur conforme ? (y/n)',
+            'status_red')
+
+    def _led_colors_check(
+            self,
+            question,
+            test_in_progress):
+        # Ask for LED check
+        answer = input(question)
+        # Evaluate answer
+        if answer in 'yY':
+            # Test OK
+            self._test_report['LED colors'][test_in_progress] = 'Test OK'
+        elif answer not in 'nN':
+            # Wrong answer, shall be in 'yYnN'
+            self._led_colors_check(
+                question,
+                test_in_progress)
 
     # Logging
     def _set_logger(self):
@@ -228,17 +423,103 @@ class Bms3Sequencer(threading.Thread):
     def _init_test_report(self) -> dict:
         return {
             'Board number': 'Not Defined',
-            'Battery voltage measurement': 'Test NOK',
-            'Preamplifier test': 'Test NOK',
-            'Current consomption in sleep mode': 'Test NOK',
-            'Battery charge': 'Test NOK',
-            'LED colors': 'Test NOK'
+            'Battery voltage measurement': (
+                {'status': 'Test NOK',
+                 'values': []}),
+            'Preamplifier test': (
+                {'status': 'Test NOK',
+                 'values': []}),
+            'Current consomption in sleep mode': (
+                {'status': 'Test NOK',
+                 'value': -1}),
+            'Battery charge': (
+                {'status': 'Test NOK',
+                 'value': -1}),
+            'LED colors': {
+                'status_red': 'Test NOK',
+                'status_green': 'Test NOK',
+                'status_blue': 'Test NOK'}
         }
 
     def _update_log(self):
         self._logger.add_lines_to_logging_file([''])
-        for key, value in self._test_report.items():
-            self._logger.add_lines_to_logging_file(['', key, value])
+        # Board number
+        self._logger.add_lines_to_logging_file([
+            '', 'Board number',
+            self._test_report['Board number']])
+
+        # Battery voltage measurement
+        # Add status to log file
+        self._logger.add_lines_to_logging_file([
+            '', 'Battery voltage measurement',
+            self._test_report['Battery voltage measurement']['status']])
+        # Get measurement values
+        values = self._test_report['Battery voltage measurement']['values']
+        # Add measurement values to log file
+        self._logger.add_lines_to_logging_file([
+            '', '', '',
+            'BMS3 measurement / Voltmeter measurement'])
+        for value in values:
+            self._logger.add_lines_to_logging_file([
+                '', '', '',
+                value])
+
+        # Preamplifier test
+        # Add status to log file
+        self._logger.add_lines_to_logging_file([
+            '', 'Preamplifier test',
+            self._test_report['Preamplifier test']['status']])
+        # Get measurement values
+        voltage_values = self._test_report['Preamplifier test'][
+            'voltage values']
+        current_values = self._test_report['Preamplifier test'][
+            'current values']
+        # Add voltage measurement values to log file
+        self._logger.add_lines_to_logging_file([
+            '', '', '',
+            'BMS3 voltage measurement / preamplifier voltage expected'])
+        for voltage_value in voltage_values:
+            self._logger.add_lines_to_logging_file([
+                '', '', '',
+                voltage_value])
+        # Add current measurement values to log file
+        self._logger.add_lines_to_logging_file([
+            '', '', '',
+            'BMS3 current consomption / '
+            'BMS3 current min value / '
+            'BMS3 current max value'])
+        for current_value in current_values:
+            self._logger.add_lines_to_logging_file([
+                '', '', '',
+                current_value])
+
+        # Current consomption in sleep mode
+        self._logger.add_lines_to_logging_file([
+            '', 'Current consomption in sleep mode',
+            self._test_report['Current consomption in sleep mode']['status'],
+            self._test_report['Current consomption in sleep mode']['value']
+            ])
+
+        # Battery charge
+        self._logger.add_lines_to_logging_file([
+            '', 'Battery charge',
+            self._test_report['Battery charge']['status'],
+            self._test_report['Battery charge']['value']
+            ])
+
+        # LED colors
+        self._logger.add_lines_to_logging_file(['', 'LED colors'])
+        self._logger.add_lines_to_logging_file([
+            '', '', 'RED',
+            self._test_report['LED colors']['status_red']])
+        self._logger.add_lines_to_logging_file([
+            '', '', 'GREEN',
+            self._test_report['LED colors']['status_green']])
+        self._logger.add_lines_to_logging_file([
+            '', '', 'BLUE',
+            self._test_report['LED colors']['status_blue']])
+
+        # Initialize report for next test
         self._init_test_report()
 
     # HAL

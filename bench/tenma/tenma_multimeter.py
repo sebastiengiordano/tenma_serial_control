@@ -10,7 +10,7 @@ In order to known which kind of measurement the multimeter send,
 used the get_mode() method which send a string corresponding to
 the kind of measurement.
 
-In order to known the current value measured by the multimeter,
+In order to known the last value measured by the multimeter,
 used the get_measurement() method.
 
 When you end your treatment, in order to close propely the application,
