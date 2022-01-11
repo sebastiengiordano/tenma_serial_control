@@ -372,6 +372,10 @@ class Bms3Sequencer(threading.Thread):
                     'status'] = 'Test OK'
 
     def _led_colors_test(self):
+        input(
+            '\t\tTest de la couleur des LED.'
+            '\nAppuyer sur la touche ENTER pour lancer le test.'
+        )
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED bleue est allumée '
@@ -392,6 +396,10 @@ class Bms3Sequencer(threading.Thread):
             self,
             question,
             test_in_progress):
+        # Wait for user
+        sleep(0.5)
+        # Activate the LED
+        self._activate_led()
         # Ask for LED check
         answer = input(question)
         # Evaluate answer
@@ -400,9 +408,23 @@ class Bms3Sequencer(threading.Thread):
             self._test_report['LED colors'][test_in_progress] = 'Test OK'
         elif answer not in 'nN':
             # Wrong answer, shall be in 'yYnN'
+            print('*********************************')
+            print('* Wrong answer, shall be y or n *')
+            print('*       Test will restart       *')
+            print('*********************************')
+            # Toogle led until the good one
+            self._activate_led()
+            sleep(2)
+            self._activate_led()
+            sleep(2)
             self._led_colors_check(
                 question,
                 test_in_progress)
+
+    def _activate_led(self):
+        self.activate_jmp_18_v()
+        sleep(0.1)
+        self.desactivate_jmp_18_v()
 
     # Logging
     def _set_logger(self):
