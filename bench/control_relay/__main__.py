@@ -8,7 +8,7 @@ from ..utils.utils import State
 
 control_relay = ControlRelay(True)
 
-for board in ('AC', 'AD'):
+for board in ('AB', 'AC', 'AD'):
     for relay in range(1, 9):
         control_relay.manage_relay(board, relay, State.Enable)
         sleep(0.3)
