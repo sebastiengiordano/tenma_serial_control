@@ -144,6 +144,24 @@ class Bms3Sequencer(threading.Thread):
         self._desactivate_relay(self._relay_current_measurement_in)
         self._desactivate_relay(self._relay_current_measurement_out)
 
+    def activate_bms3_battery_measurement(self):
+        self.desactivate_preamplifier_measurement()
+        self._activate_relay(self._relay_bms3_battery_measurement_minus)
+        self._activate_relay(self._relay_bms3_battery_measurement_plus)
+
+    def desactivate_bms3_battery_measurement(self):
+        self._desactivate_relay(self._relay_bms3_battery_measurement_minus)
+        self._desactivate_relay(self._relay_bms3_battery_measurement_plus)
+
+    def activate_preamplifier_measurement(self):
+        self.desactivate_bms3_battery_measurement()
+        self._activate_relay(self._relay_preamplifier_measurement_minus)
+        self._activate_relay(self._relay_preamplifier_measurement_plus)
+
+    def desactivate_preamplifier_measurement(self):
+        self._desactivate_relay(self._relay_preamplifier_measurement_minus)
+        self._desactivate_relay(self._relay_preamplifier_measurement_plus)
+
     # Connect/disconnected USB (Vcc/ Ground)
     def connect_usb_power(self):
         self._activate_relay(self._relay_usb_vcc)
@@ -210,6 +228,7 @@ class Bms3Sequencer(threading.Thread):
             3500,
             3150,
             2800]
+        self.activate_bms3_battery_measurement()
 
         # BMS3 battery voltage measurement tests
         for voltage in voltage_to_check:
@@ -252,9 +271,7 @@ class Bms3Sequencer(threading.Thread):
         # Init test
         test_report_status = []
         self.activate_current_measurement()
-        # Need to know if the bench used a third multimeter
-        # or if it used more relay in order to used only one multimeter
-        raise NotImplementedError
+        self.activate_preamplifier_measurement()
 
         # Connected low load and check BMS3 behavior
         self.connect_low_load()
@@ -265,9 +282,18 @@ class Bms3Sequencer(threading.Thread):
                 LOW_LOAD_CURRENT_LOW_THRESHOLD,
                 LOW_LOAD_CURRENT_HIGH_THRESHOLD))
 
-        # Disconnected low load
+        # Disconnected low load and check BMS3 behavior
         self.disconnect_load()
+        self.activate_bms3_battery_measurement()
         sleep(.5)
+        voltage_measurement = self._voltmeter.get_measurement()
+        self.activate_preamplifier_measurement()
+        sleep(.5)
+        test_report_status.append(
+            self._preamplifier_test_check(
+                voltage_measurement,
+                NO_LOAD_CURRENT_LOW_THRESHOLD,
+                NO_LOAD_CURRENT_HIGH_THRESHOLD))
 
         # Connected high load and check BMS3 behavior
         self.connect_high_load()
@@ -591,6 +617,18 @@ class Bms3Sequencer(threading.Thread):
         self._relay_swdio = {
             'board': "AD", 'relay_number': 8,
             'state': State.Disable}
+        self._relay_bms3_battery_measurement_minus = {
+            'board': "AB", 'relay_number': 1,
+            'state': State.Disable}
+        self._relay_bms3_battery_measurement_plus = {
+            'board': "AB", 'relay_number': 2,
+            'state': State.Disable}
+        self._relay_preamplifier_measurement_minus = {
+            'board': "AB", 'relay_number': 7,
+            'state': State.Disable}
+        self._relay_preamplifier_measurement_plus = {
+            'board': "AB", 'relay_number': 8,
+            'state': State.Disable}
         self._relay_list = [
             self._relay_tenma_alim,
             self._relay_isolated_alim,
@@ -606,7 +644,11 @@ class Bms3Sequencer(threading.Thread):
             self._relay_debug_rx,
             self._relay_swclk,
             self._relay_nrst,
-            self._relay_swdio
+            self._relay_swdio,
+            self._relay_bms3_battery_measurement_minus,
+            self._relay_bms3_battery_measurement_plus,
+            self._relay_preamplifier_measurement_minus,
+            self._relay_preamplifier_measurement_plus
         ]
         self._set_bench_state_variables()
 
