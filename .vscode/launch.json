@@ -31,6 +31,16 @@
                 "-g"
             ],
             "stopOnEntry": false
+        },
+        {
+            "name": "Python: Module - sequencer",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.sequencer",
+            "args": [
+                "-g"
+            ],
+            "stopOnEntry": false
         }
     ]
 }

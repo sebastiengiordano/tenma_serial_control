@@ -33,7 +33,8 @@ class BMS3Command:
                 self._command.set_serial(ser)
                 self._command.cmdGetVersion()
                 self._port_list.pop(port)
-            finally:
+                return
+            except:
                 pass
         raise CmdException('Impossible de se connecter à la BMS3.')
 
@@ -105,7 +106,7 @@ class BMS3Command:
         sleep(0.5)
         return ser
 
-    def _get_port_list(self) -> list(str):
+    def _get_port_list(self) -> list[str]:
         # Seek for all connected device
         available_serial_port = serial.tools.list_ports.comports()
         port_list = []
@@ -135,12 +136,12 @@ class BMS3Command:
             module_dir,
             'bms3_firmwares')
 
-    def _get_firmware_files_list(self) -> list(str):
+    def _get_firmware_files_list(self) -> list[str]:
         firmware_files_list = self._files_in_folder(
             self._firmware_folder_path)
         return firmware_files_list
 
-    def _files_in_folder(self, folder_path: str) -> list(str):
+    def _files_in_folder(self, folder_path: str) -> list[str]:
         '''Return the list of all files in folder_path and its subfolder'''
         files_in_folder_path = []
         # Loop on all files or directories inside folder_path

@@ -24,7 +24,7 @@ BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = -100     # mA
 
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
-LOG_COLUMNS_WIDTH = [40]*10
+LOG_COLUMNS_WIDTH = [55, 40, 10, 80]
 
 
 class Bms3Sequencer(threading.Thread):
@@ -48,13 +48,17 @@ class Bms3Sequencer(threading.Thread):
         # Set other variables
         self._test_in_progress = True
         self._test_count = 0
+        # Run tests
+        self.start()
 
     ##################
     # Public methods #
     ##################
-    def start(self):
+    def run(self):
         while self._test_in_progress:
             self._test_sequence()
+        self._ampmeter.kill()
+        self._voltmeter.kill()
 
     # DC power
     def connect_tenma_alim(self):
@@ -455,13 +459,15 @@ class Bms3Sequencer(threading.Thread):
     # Logging
     def _set_logger(self):
         logging_name = input(
-            '\t'
+            '\n\t'
             'Entrer le nom de la série de test.'
-            '\n\t'
+            '\n\n\t'
             'Rmq: ou taper sur ENTER pour utiliser le nom'
-            '\n\t'
             f'par défaut: {DEFAULT_LOG_LABEL}.'
+            '\n'
         )
+        if logging_name == '':
+            logging_name = DEFAULT_LOG_LABEL
         self._logger = Logger(
             logging_name=logging_name,
             logging_folder=LOGGING_FOLDER,
@@ -476,7 +482,8 @@ class Bms3Sequencer(threading.Thread):
                  'values': []}),
             'Preamplifier test': (
                 {'status': 'Test NOK',
-                 'values': []}),
+                 'voltage values': [],
+                 'current values': []}),
             'Current consomption in sleep mode': (
                 {'status': 'Test NOK',
                  'value': -1}),
@@ -494,7 +501,8 @@ class Bms3Sequencer(threading.Thread):
         # Board number
         self._logger.add_lines_to_logging_file([
             '', 'Board number',
-            self._test_report['Board number']])
+            self._test_report['Board number'],
+            self._test_status()])
 
         # Battery voltage measurement
         # Add status to log file
@@ -569,6 +577,9 @@ class Bms3Sequencer(threading.Thread):
 
         # Initialize report for next test
         self._init_test_report()
+
+    def _test_status(self):
+        raise NotImplementedError
 
     # HAL
     def _set_hal(self):
@@ -658,6 +669,7 @@ class Bms3Sequencer(threading.Thread):
             relay['board'],
             relay['relay_number'],
             relay['state'])
+        sleep(0.1)
 
     def _desactivate_relay(self, relay):
         relay['state'] = State.Disable
@@ -665,6 +677,7 @@ class Bms3Sequencer(threading.Thread):
             relay['board'],
             relay['relay_number'],
             relay['state'])
+        sleep(0.1)
 
     def _set_bench_state_variables(self):
         self._tenma_alim_state = ConnectionState.Disconnected
@@ -701,7 +714,8 @@ class Bms3Sequencer(threading.Thread):
             '\n\t'
             'Veuillez entrer le numéro de la BMS3 sous test.'
             '\n\t'
-            'Ou \'Quit\' pour arrêter les séquences de test.')
+            'Ou \'Quit\' pour arrêter les séquences de test.'
+            '\n')
         if board_number == '':
             self._ask_for_board_number()
         elif board_number.lower() == 'quit':
@@ -712,10 +726,11 @@ class Bms3Sequencer(threading.Thread):
             self._tenma_dc_power.disconnect()
             self._ampmeter.kill()
             self._voltmeter.kill()
+            self._test_in_progress = False
             print('\n\t\t'
                   'Test end.')
         else:
-            if not self._check_bms3_number_format():
+            if not self._check_bms3_number_format(board_number):
                 self._ask_for_board_number()
             self._test_report['Board number'] = board_number
 
@@ -744,24 +759,46 @@ class Bms3Sequencer(threading.Thread):
     def _set_multimeter(self):
         # Seek for Voltmeter and Ampmeter
         tenma_multimeter = Tenma_72_7730A_manage(0x1200)
+        tenma_multimeter.start()
+        sleep(1)
         if tenma_multimeter.get_mode() == 'Current':
             self._ampmeter = tenma_multimeter
             self._voltmeter = Tenma_72_7730A_manage(0x1400)
+            self._voltmeter.start()
         else:
             self._voltmeter = tenma_multimeter
             self._ampmeter = Tenma_72_7730A_manage(0x1400)
+            self._ampmeter.start()
+        sleep(1)
         well_connected = True
+        frame = '*' * 56
+        frame = '\n\t' + frame
         if not self._ampmeter.get_mode() == 'Current':
             well_connected = False
-            print('Vérifier l\'installation de l\'ampèremètre\n'
-                  'et que la fonction SEND est bien activée.')
+            print(
+                frame,
+                '\n\t\t'
+                'Vérifier l\'installation de l\'ampèremètre'
+                '\n\t\t'
+                'et que la fonction SEND est bien activée.',
+                frame)
         if not self._voltmeter.get_mode() == 'Voltage':
             well_connected = False
-            print('Vérifier l\'installation du voltmètre\n'
-                  'et que la fonction SEND est bien activée.')
-            if not well_connected:
-                input()
-                raise SystemExit
+            print(
+                frame,
+                '\n\t\t'
+                'Vérifier l\'installation du voltmètre'
+                '\n\t\t'
+                'et que la fonction SEND est bien activée.',
+                frame)
+        if not well_connected:
+            self._ampmeter.kill()
+            self._voltmeter.kill()
+            input(
+                '\n'
+                'Appuyer sur la touche ENTER.'
+            )
+            raise SystemExit
 
     # Tenma DC
     def _tenma_dc_power_on(self):

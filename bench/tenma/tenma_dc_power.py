@@ -7,7 +7,7 @@ from ..utils.utils import enumerate_serial, autoselect_serial
 
 MAX_VOLTAGE = 3500
 MAX_CURRENT = 60
-WAIT_AFTER_SETTING = 1500
+WAIT_AFTER_SETTING = 1.5
 
 
 class Tenma_72_2535_manage:

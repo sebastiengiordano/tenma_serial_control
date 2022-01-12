@@ -26,6 +26,7 @@ class ControlRelay:
         # Check connection
         self._check_connection()
         # Configure relay board
+        self._configure_relay_board(self._control_relay_ab)
         self._configure_relay_board(self._control_relay_ac)
         self._configure_relay_board(self._control_relay_ad)
 
@@ -185,7 +186,7 @@ class ControlRelay:
         if self._verbose:
             print(f'Configure relay board on {ser.port}.')
 
-    def _get_port_and_id(self) -> list(tuple(str)):
+    def _get_port_and_id(self) -> list[tuple[str]]:
         # Seek for all connected device
         available_serial_port = enumerate_serial()
         # Select the port
