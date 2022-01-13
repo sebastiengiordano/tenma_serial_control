@@ -21,7 +21,7 @@ class BMS3Command:
         self._verbose = verbose
         self._set_firmware_folder()
         self._port_list = self._get_port_list()
-        self._debug_tx_serial_port = None
+        self._debug_tx_serial = None
 
     def connect_to_bms3(self):
         for port in self._port_list:
@@ -125,8 +125,8 @@ class BMS3Command:
                 line = line.decode(encoding='utf-8')
                 if int(line) >= 0:
                     return ser
-            finally:
-                pass
+            except serial.SerialException:
+                continue
         raise CmdException(
             'Impossible de lire sur les données du DEBUG_TX de la BMS3.')
 

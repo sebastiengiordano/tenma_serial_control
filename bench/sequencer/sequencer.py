@@ -1,4 +1,5 @@
 import threading
+import usb.core
 from time import sleep
 
 from bench.control_relay.control_relay import ControlRelay
@@ -25,6 +26,8 @@ BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = -100     # mA
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
 LOG_COLUMNS_WIDTH = [55, 40, 10, 80]
+
+LOAD_FIRMWARE = False
 
 
 class Bms3Sequencer(threading.Thread):
@@ -191,8 +194,9 @@ class Bms3Sequencer(threading.Thread):
             # Ask for board number
             self._ask_for_board_number()
 
-            # BMS3 load "post prod test" firmware
-            self._load_firmware('BMS_3.0_v3_v01.11_post_prod_test')
+            # BMS3 load firmware if requested
+            if LOAD_FIRMWARE:
+                self._load_firmware('BMS_3.0_v3_v01.11')
 
             # BMS3 wake up
             self.bms3_wake_up()
@@ -211,9 +215,6 @@ class Bms3Sequencer(threading.Thread):
 
             # Test: LED colors
             self._led_colors_test()
-
-            # BMS3 load "customer" firmware BMS_3.0_v3_v01.11
-            self._load_firmware('BMS_3.0_v3_v01.11')
 
         except Exception as err:
             self._add_exception_to_log(err)
@@ -579,7 +580,26 @@ class Bms3Sequencer(threading.Thread):
         self._init_test_report()
 
     def _test_status(self):
-        raise NotImplementedError
+        if (
+                self._test_report[
+                    'Battery voltage measurement']['values'] == 'Test OK'
+                and
+                self._test_report['Preamplifier test']['values'] == 'Test OK'
+                and
+                self._test_report[
+                    'Current consomption in sleep mode'][
+                        'values'] == 'Test OK'
+                and
+                self._test_report['Battery charge']['values'] == 'Test OK'
+                and
+                self._test_report['LED colors']['status_red'] == 'Test OK'
+                and
+                self._test_report['LED colors']['status_green'] == 'Test OK'
+                and
+                self._test_report['LED colors']['status_blue'] == 'Test OK'):
+            return 'Test OK'
+        else:
+            return 'Test NOK'
 
     # HAL
     def _set_hal(self):
@@ -719,6 +739,7 @@ class Bms3Sequencer(threading.Thread):
         if board_number == '':
             self._ask_for_board_number()
         elif board_number.lower() == 'quit':
+            self._test_in_progress = False
             self._logger.stop_logging(
                 f'BMS3 - {self._test_count} post-prod tests.'
             )
@@ -726,7 +747,6 @@ class Bms3Sequencer(threading.Thread):
             # self._tenma_dc_power.disconnect()
             self._ampmeter.kill()
             self._voltmeter.kill()
-            self._test_in_progress = False
             print('\n\t\t'
                   'Test end.')
         else:
@@ -757,23 +777,24 @@ class Bms3Sequencer(threading.Thread):
 
     # Measurement tools
     def _set_multimeter(self):
-        # Seek for Voltmeter and Ampmeter
-        tenma_multimeter = Tenma_72_7730A_manage(0x1200)
-        tenma_multimeter.start()
-        sleep(1)
-        if tenma_multimeter.get_mode() == 'Current':
-            self._ampmeter = tenma_multimeter
-            self._voltmeter = Tenma_72_7730A_manage(0x1400)
-            self._voltmeter.start()
-        else:
-            self._voltmeter = tenma_multimeter
-            self._ampmeter = Tenma_72_7730A_manage(0x1400)
-            self._ampmeter.start()
-        sleep(1)
+        # Intialization
+        self._ampmeter = None
+        self._voltmeter = None
         well_connected = True
         frame = '*' * 56
         frame = '\n\t' + frame
-        if not self._ampmeter.get_mode() == 'Current':
+        # Seek for Voltmeter and Ampmeter
+        bcdDevices = self._get_bcd_devices()
+        for bcdDevice in bcdDevices:
+            tenma_multimeter = Tenma_72_7730A_manage(bcdDevice)
+            tenma_multimeter.start()
+            sleep(1)
+            if tenma_multimeter.get_mode() == 'Current':
+                self._ampmeter = tenma_multimeter
+            elif tenma_multimeter.get_mode() == 'Voltage':
+                self._voltmeter = tenma_multimeter
+        # Check if Ampmeter is well_connected
+        if self._ampmeter is None:
             well_connected = False
             print(
                 frame,
@@ -782,7 +803,8 @@ class Bms3Sequencer(threading.Thread):
                 '\n\t\t'
                 'et que la fonction SEND est bien activée.',
                 frame)
-        if not self._voltmeter.get_mode() == 'Voltage':
+        # Check if Voltmeter is well_connected
+        if self._voltmeter is None:
             well_connected = False
             print(
                 frame,
@@ -799,6 +821,16 @@ class Bms3Sequencer(threading.Thread):
         #         'Appuyer sur la touche ENTER.'
         #     )
         #     raise SystemExit
+
+    def _get_bcd_devices(self) -> list[int]:
+        # Seek for all connected device
+        devices = usb.core.find(find_all=True)
+        # Select all Tenma_72_2535
+        bcdDevices = []
+        for device in devices:
+            if device.idProduct == 0xE008 and device.idVendor == 0x1A86:
+                bcdDevices.append(device.bcdDevice)
+        return bcdDevices
 
     # Tenma DC
     def _tenma_dc_power_on(self):
