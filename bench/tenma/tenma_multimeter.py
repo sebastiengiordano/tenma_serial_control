@@ -114,11 +114,10 @@ class Tenma_72_7730A_manage(threading.Thread):
         return self._measurement
 
     def get_mode(self) -> str:
-        try: 
-            name = self._mode.name
-        except:
-            name = ''
-        return name
+        if self._mode is None:
+            return ''
+        else:
+            return self._mode.name
 
     def _getDigits(self):
         dig = self._multimeter_data[0:5]
