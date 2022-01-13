@@ -211,25 +211,13 @@ class ControlRelay:
             current_command: int,
             relay: int,
             state: State):
-        # Check if the current relay state correspond to the requested state
-        relay_state = self._relay_state(current_command, relay)
-        if relay_state == state:
-            return current_command
-        # If its not the case, update the command
         if state == State.Enable:
-            update_command = current_command - (1 << (relay - 1))
+            # Corresponding bit shall be set to 0
+            update_command = current_command & (0xff - (1 << (relay - 1)))
         else:
-            update_command = current_command + (1 << (relay - 1))
+            # Corresponding bit shall be set to 1
+            update_command = current_command | (1 << relay - 1)
         return update_command
-
-    def _relay_state(
-            self,
-            current_command: int,
-            relay: int):
-        if current_command & (1 << (relay - 1)):
-            return State.Disable
-        else:
-            return State.Enable
 
     def _read_port_com(self, ser: serial.Serial, verbose=False) -> str:
         data = ser.readline()
