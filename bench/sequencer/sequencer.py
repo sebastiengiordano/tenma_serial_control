@@ -36,7 +36,7 @@ class Bms3Sequencer(threading.Thread):
         threading.Thread.__init__(self)
         # Set bench control device
         self._control_relay = ControlRelay()
-        self._tenma_dc_power = Tenma_72_2535_manage()
+        # self._tenma_dc_power = Tenma_72_2535_manage()
         # Set measurement tools
         self._set_multimeter()
         # Set logger
@@ -722,8 +722,8 @@ class Bms3Sequencer(threading.Thread):
             self._logger.stop_logging(
                 f'BMS3 - {self._test_count} post-prod tests.'
             )
-            self._tenma_dc_power.power('OFF')
-            self._tenma_dc_power.disconnect()
+            # self._tenma_dc_power.power('OFF')
+            # self._tenma_dc_power.disconnect()
             self._ampmeter.kill()
             self._voltmeter.kill()
             self._test_in_progress = False
@@ -791,26 +791,27 @@ class Bms3Sequencer(threading.Thread):
                 '\n\t\t'
                 'et que la fonction SEND est bien activée.',
                 frame)
-        if not well_connected:
-            self._ampmeter.kill()
-            self._voltmeter.kill()
-            input(
-                '\n'
-                'Appuyer sur la touche ENTER.'
-            )
-            raise SystemExit
+        # if not well_connected:
+        #     self._ampmeter.kill()
+        #     self._voltmeter.kill()
+        #     input(
+        #         '\n'
+        #         'Appuyer sur la touche ENTER.'
+        #     )
+        #     raise SystemExit
 
     # Tenma DC
     def _tenma_dc_power_on(self):
         if self._tenma_dc_power_state == State.Disable:
             self._tenma_dc_power_state == State.Enable
-            self._tenma_dc_power.power('ON')
+            # self._tenma_dc_power.power('ON')
 
     def _tenma_dc_power_off(self):
         if self._tenma_dc_power_state == State.Enable:
             self._tenma_dc_power_state == State.Disable
-            self._tenma_dc_power.set_voltage(0)
-            self._tenma_dc_power.power('OFF')
+            # self._tenma_dc_power.set_voltage(0)
+            # self._tenma_dc_power.power('OFF')
 
     def _tenma_dc_set_voltage(self, value) -> int:
-        return self._tenma_dc_power.set_voltage(value)
+        # return self._tenma_dc_power.set_voltage(value)
+        return
