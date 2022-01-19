@@ -47,7 +47,7 @@ class ControlRelay:
                 self._control_relay_ab,
                 self._command_ab
             )
-        if board == 'AC':
+        elif board == 'AC':
             # Update the command value of board AC
             self._command_ac = self._update_command(
                 self._command_ac,
@@ -58,7 +58,7 @@ class ControlRelay:
                 self._control_relay_ac,
                 self._command_ac
             )
-        if board == 'AD':
+        elif board == 'AD':
             # Update the command value of board AD
             self._command_ad = self._update_command(
                 self._command_ad,
