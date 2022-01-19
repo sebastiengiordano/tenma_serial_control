@@ -23,8 +23,10 @@ class Tenma_72_2535_manage:
         self.tenma72_2535 = Tenma72_2535(
             alim_serial_port,
             debug=debug)
-        # print(self.tenma72_2535.getVersion())
-        self.comm_port_status = 'Open'
+        if self.tenma72_2535.ser.is_open:
+            self._comm_port_status = 'Open'
+        else:
+            self._comm_port_status = 'Close'
 
     def power(self, state: str, verbose=False) -> str:
         if state == 'ON':
@@ -62,10 +64,10 @@ class Tenma_72_2535_manage:
         return value
 
     def disconnect(self):
-        self.power('OFF')
-        self.tenma72_2535.close()
-        self.comm_port_status = 'Close'
+        if self._comm_port_status == 'Open':
+            self.power('OFF')
+            self.tenma72_2535.close()
+            self._comm_port_status = 'Close'
 
     def __del__(self):
-        if self.comm_port_status == 'Open':
-            self.disconnect()
+        self.disconnect()

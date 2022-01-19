@@ -1,7 +1,7 @@
-import threading
 import usb.core
 from time import sleep
 from sys import exit
+from os import system
 
 from bench.control_relay.control_relay import ControlRelay
 from bench.tenma.tenma_dc_power import Tenma_72_2535_manage
@@ -34,13 +34,12 @@ ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
 
 
-class Bms3Sequencer(threading.Thread):
+class Bms3Sequencer():
 
     ########################
     # Class Initialization #
     ########################
     def __init__(self):
-        threading.Thread.__init__(self)
         # Set bench control device
         self._control_relay = ControlRelay()
         self._tenma_dc_power = Tenma_72_2535_manage()
@@ -56,7 +55,7 @@ class Bms3Sequencer(threading.Thread):
         self._test_in_progress = True
         self._test_count = 0
         # Run tests
-        self.start()
+        self.run()
 
     ##################
     # Public methods #
@@ -64,7 +63,7 @@ class Bms3Sequencer(threading.Thread):
     def run(self):
         while self._test_in_progress:
             self._test_sequence()
-        self._kill()
+        exit()
 
     # DC power
     def connect_tenma_alim(self):
@@ -796,12 +795,9 @@ class Bms3Sequencer(threading.Thread):
             self._logger.stop_logging(
                 f'BMS3 - {self._test_count} post-prod tests.'
             )
-            self._tenma_dc_power.power('OFF')
-            self._tenma_dc_power.disconnect()
-            self._ampmeter.kill()
-            self._voltmeter.kill()
             print('\n\t\t'
                   'Test end.')
+            exit()
         else:
             if not self._check_bms3_number_format(board_number):
                 self._ask_for_board_number()
@@ -867,11 +863,9 @@ class Bms3Sequencer(threading.Thread):
                 'et que la fonction SEND est bien activée.',
                 frame)
         if not well_connected:
-            input(
-                '\n'
-                'Appuyer sur la touche ENTER.'
-            )
-            self._kill()
+            print()
+            system('pause')
+            exit()
 
     def _get_bcd_devices(self) -> list[int]:
         # Seek for all connected device
@@ -900,27 +894,3 @@ class Bms3Sequencer(threading.Thread):
 
     def _tenma_dc_set_voltage(self, value) -> int:
         return self._tenma_dc_power.set_voltage(value)
-
-    # End application
-    def _kill(self):
-        if (
-                hasattr(self, '_control_relay')
-                and
-                self._control_relay is not None):
-            self._control_relay.disconnect()
-        if (
-                hasattr(self, '_ampmeter')
-                and
-                self._ampmeter is not None):
-            self._ampmeter.kill()
-        if (
-                hasattr(self, '_voltmeter')
-                and
-                self._voltmeter is not None):
-            self._voltmeter.kill()
-        if (
-                hasattr(self, '_bms3_interface')
-                and
-                self._bms3_interface is not None):
-            self._bms3_interface.kill()
-        exit()

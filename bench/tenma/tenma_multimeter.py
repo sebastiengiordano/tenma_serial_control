@@ -38,7 +38,7 @@ class OvfStatus(Enum):
 class Tenma_72_7730A_manage(threading.Thread):
 
     def __init__(self, bcdDevice):
-        threading.Thread.__init__(self)
+        threading.Thread.__init__(self, daemon=True)
         self._device = None
         self._configuration = None
         self._interface = None
@@ -106,9 +106,6 @@ class Tenma_72_7730A_manage(threading.Thread):
                     print(err.__doc__)
                     print(err.__dict__)
                     print()
-
-    def kill(self):
-        self._thread_run = False
 
     def get_measurement(self) -> int:
         return self._measurement

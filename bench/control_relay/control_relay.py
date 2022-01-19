@@ -74,19 +74,34 @@ class ControlRelay:
                 f'Board \'{board}\': '
                 f'Relay n°{relay} {state.name}')
 
-    def disconnect(self):
-        self._send_command(
-            self._control_relay_ab,
-            0xFF)
-        self._send_command(
-            self._control_relay_ac,
-            0xFF)
-        self._send_command(
-            self._control_relay_ad,
-            0xFF)
-        self._control_relay_ab.close()
-        self._control_relay_ac.close()
-        self._control_relay_ad.close()
+    def __del__(self):
+        # Disconnect relays board AB
+        if (
+                self._control_relay_ab is not None
+                and
+                self._control_relay_ab.is_open):
+            self._send_command(
+                self._control_relay_ab,
+                0xFF)
+            self._control_relay_ab.close()
+        # Disconnect relays board AC
+        if (
+                self._control_relay_ac is not None
+                and
+                self._control_relay_ac.is_open):
+            self._send_command(
+                self._control_relay_ac,
+                0xFF)
+            self._control_relay_ac.close()
+        # Disconnect relays board AD
+        if (
+                self._control_relay_ad is not None
+                and
+                self._control_relay_ad.is_open):
+            self._send_command(
+                self._control_relay_ad,
+                0xFF)
+            self._control_relay_ad.close()
         if self._verbose:
             print(
                 f'Port {self._control_relay_ab.port} closed.'

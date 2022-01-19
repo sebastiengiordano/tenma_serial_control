@@ -19,4 +19,3 @@ while input(
         for relay in range(1, 9):
             control_relay.manage_relay(board, relay, State.Disable)
             sleep(0.1)
-control_relay.disconnect()

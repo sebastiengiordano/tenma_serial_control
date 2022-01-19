@@ -27,9 +27,6 @@ class BMS3Command:
         self._connect_debug_tx_serial()
         self._set_firmware_folder()
 
-    def kill(self) :
-        self._end_measurement = True
-
     def get_measurement(self):
         # Waiting for reading last value
         sleep(.5)
@@ -87,8 +84,10 @@ class BMS3Command:
             )
         if not self._debug_tx_serial.is_open:
             self._debug_tx_serial.open()
-        x = Thread(target=self._read_measurement)
-        x.start()
+        measurement_thread = Thread(
+            target=self._read_measurement,
+            daemon=True)
+        measurement_thread.start()
 
     def _read_measurement(self):
         while not self._end_measurement:

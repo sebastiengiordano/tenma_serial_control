@@ -73,6 +73,9 @@ class Logger:
         # Update column width
         for colum_index, width in enumerate(self._columns_width):
             worksheet.set_column(colum_index, colum_index, width)
+        # Check if csv file has been created
+        if not exists(csvfile):
+            return
         # Write csv in xlsx
         with open(csvfile, 'rt', encoding='utf8') as file:
             reader = csv.reader(file)
