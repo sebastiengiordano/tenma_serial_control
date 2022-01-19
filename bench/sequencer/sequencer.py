@@ -7,7 +7,7 @@ from bench.control_relay.control_relay import ControlRelay
 from bench.tenma.tenma_dc_power import Tenma_72_2535_manage
 from bench.tenma.tenma_multimeter import Tenma_72_7730A_manage
 from bench.logger.logger import Logger
-from bench.bms3_interface.bms3_command import BMS3Command
+from bench.bms3_interface.bms3_command import BMS3Command, INVALID_VALUE
 
 from bench.utils.utils import State, ConnectionState
 
@@ -26,7 +26,7 @@ BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = -100     # mA
 
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
-LOG_COLUMNS_WIDTH = [55, 40, 10, 80]
+LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
 
 LOAD_FIRMWARE = False
 
@@ -64,8 +64,7 @@ class Bms3Sequencer(threading.Thread):
     def run(self):
         while self._test_in_progress:
             self._test_sequence()
-        self._ampmeter.kill()
-        self._voltmeter.kill()
+        self._kill()
 
     # DC power
     def connect_tenma_alim(self):
@@ -230,6 +229,7 @@ class Bms3Sequencer(threading.Thread):
             # Disable all relay
             self.disable_all_relays()
 
+        # Battery voltage measurement test
     def _battery_voltage_measurement_test(self):
         # Init test
         test_report_status = []
@@ -253,7 +253,7 @@ class Bms3Sequencer(threading.Thread):
 
     def _battery_voltage_measurement_check(self) -> bool:
         # Get measurements
-        voltage_measurement = self._voltmeter.get_measurement()
+        voltage_measurement = self._voltmeter.get_measurement() * 1000
         bms3_voltage_measurement = self._get_bms3_voltage_measurement()
 
         # Set voltage threshold
@@ -276,6 +276,7 @@ class Bms3Sequencer(threading.Thread):
         else:
             return False
 
+        # Preamplifier test
     def _preamplifier_test(self):
         # Init test
         test_report_status = []
@@ -295,6 +296,8 @@ class Bms3Sequencer(threading.Thread):
         self.disconnect_load()
         self.activate_bms3_battery_measurement()
         sleep(.5)
+            # Get battery voltage in order to check that its
+            # the same voltage at preamplifier output
         voltage_measurement = self._voltmeter.get_measurement()
         self.activate_preamplifier_measurement()
         sleep(.5)
@@ -321,7 +324,6 @@ class Bms3Sequencer(threading.Thread):
 
         # End preamplifier test
         self.disconnect_load()
-        sleep(.5)
 
     def _preamplifier_test_check(
             self,
@@ -364,12 +366,16 @@ class Bms3Sequencer(threading.Thread):
         else:
             return False
 
+        # Current consomption in sleep mode test
     def _current_consomption_in_sleep_mode_test(self):
+        # Init test
+        self.activate_current_measurement()
+        sleep(.5)
         # Get measurement
         current_measurement = self._ampmeter.get_measurement()
 
         # Add measurement values to test report
-        self._test_report['Current consomption in sleep mode']['value'].append(
+        self._test_report['Current consomption in sleep mode']['value'] = (
             str(current_measurement)
             + ' / '
             + str(NO_LOAD_CURRENT_LOW_THRESHOLD)
@@ -385,6 +391,7 @@ class Bms3Sequencer(threading.Thread):
                 'Current consomption in sleep mode'][
                     'status'] = 'Test OK'
 
+        # Battery charge test
     def _battery_charge_test(self):
         # Init test
         self.connect_isolated_alim()
@@ -406,26 +413,41 @@ class Bms3Sequencer(threading.Thread):
                 'Battery charge'][
                     'status'] = 'Test OK'
 
+        # LED colors test
     def _led_colors_test(self):
-        input(
-            '\t\tTest de la couleur des LED.'
-            '\nAppuyer sur la touche ENTER pour lancer le test.'
-        )
+        sentence = '\tTest de la couleur des LED.'
+        frame = '*' * (16 + len(sentence))
+        frame = '\n' + frame + '\n'
+        print(
+            frame,
+            sentence,
+            frame)
+        # Test the blue LED
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED bleue est allumée '
-            'et sa couleur conforme ? (y/n)',
+            'et sa couleur conforme ? (y/n)\t',
             'status_blue')
+        # Test the green LED
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED verte est allumée '
-            'et sa couleur conforme ? (y/n)',
+            'et sa couleur conforme ? (y/n)\t',
             'status_green')
+        # Test the red LED
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED rouge est allumée '
-            'et sa couleur conforme ? (y/n)',
+            'et sa couleur conforme ? (y/n)\t',
             'status_red')
+        # Evaluate test reports status
+        if 'Test NOK' not in (
+                self._test_report['LED colors']['status_red'],
+                self._test_report['LED colors']['status_green'],
+                self._test_report['LED colors']['status_blue']):
+            self._test_report[
+                'LED colors'][
+                    'status'] = 'Test OK'
 
     def _led_colors_check(
             self,
@@ -437,28 +459,36 @@ class Bms3Sequencer(threading.Thread):
         self._activate_led()
         # Ask for LED check
         answer = input(question)
+        # Desactivate the LED
+        self._desactivate_led()
         # Evaluate answer
         if answer in 'yY':
             # Test OK
             self._test_report['LED colors'][test_in_progress] = 'Test OK'
         elif answer not in 'nN':
             # Wrong answer, shall be in 'yYnN'
-            print('*********************************')
-            print('* Wrong answer, shall be y or n *')
-            print('*       Test will restart       *')
-            print('*********************************')
+            print('\t\t*********************************')
+            print('\t\t* Wrong answer, shall be y or n *')
+            print('\t\t*       Test will restart       *')
+            print('\t\t*********************************')
             # Toogle led until the good one
+            self._desactivate_led()
+            sleep(.1)
             self._activate_led()
             sleep(2)
+            self._desactivate_led()
+            sleep(.1)
             self._activate_led()
             sleep(2)
+            self._desactivate_led()
             self._led_colors_check(
                 question,
                 test_in_progress)
 
     def _activate_led(self):
         self.activate_jmp_18_v()
-        sleep(0.1)
+
+    def _desactivate_led(self):
         self.desactivate_jmp_18_v()
 
     # Logging
@@ -467,8 +497,9 @@ class Bms3Sequencer(threading.Thread):
             '\n\t'
             'Entrer le nom de la série de test.'
             '\n\n\t'
-            'Rmq: ou taper sur ENTER pour utiliser le nom'
-            f'par défaut: {DEFAULT_LOG_LABEL}.'
+            'Rmq: ou taper sur ENTER pour utiliser'
+            '\n\t'
+            f'le nom par défaut: {DEFAULT_LOG_LABEL}.'
             '\n'
         )
         if logging_name == '':
@@ -496,6 +527,7 @@ class Bms3Sequencer(threading.Thread):
                 {'status': 'Test NOK',
                  'value': -1}),
             'LED colors': {
+                'status': 'Test NOK',
                 'status_red': 'Test NOK',
                 'status_green': 'Test NOK',
                 'status_blue': 'Test NOK'}
@@ -513,13 +545,11 @@ class Bms3Sequencer(threading.Thread):
         # Add status to log file
         self._logger.add_lines_to_logging_file([
             '', 'Battery voltage measurement',
-            self._test_report['Battery voltage measurement']['status']])
+            self._test_report['Battery voltage measurement']['status'],
+            'BMS3 measurement / Voltmeter measurement'])
         # Get measurement values
         values = self._test_report['Battery voltage measurement']['values']
         # Add measurement values to log file
-        self._logger.add_lines_to_logging_file([
-            '', '', '',
-            'BMS3 measurement / Voltmeter measurement'])
         for value in values:
             self._logger.add_lines_to_logging_file([
                 '', '', '',
@@ -558,6 +588,11 @@ class Bms3Sequencer(threading.Thread):
         self._logger.add_lines_to_logging_file([
             '', 'Current consomption in sleep mode',
             self._test_report['Current consomption in sleep mode']['status'],
+            'BMS3 current consomption / '
+            'BMS3 current min value / '
+            'BMS3 current max value'])
+        self._logger.add_lines_to_logging_file([
+            '', '',
             self._test_report['Current consomption in sleep mode']['value']
             ])
 
@@ -569,7 +604,9 @@ class Bms3Sequencer(threading.Thread):
             ])
 
         # LED colors
-        self._logger.add_lines_to_logging_file(['', 'LED colors'])
+        self._logger.add_lines_to_logging_file([
+            '', 'LED colors', 
+            self._test_report['LED colors']['status']])
         self._logger.add_lines_to_logging_file([
             '', '', 'RED',
             self._test_report['LED colors']['status_red']])
@@ -724,25 +761,37 @@ class Bms3Sequencer(threading.Thread):
         self.release_push_in_button()
         self._tenma_dc_power_off()
 
-    def _get_bms3_voltage_measurement(self) -> int:
-        self.connect_debug_rx()
+    def _get_bms3_voltage_measurement(self, count=3) -> int:
         self.connect_debug_tx()
-        voltage_measurement = self._bms3_interface.read_debug_tx()
+        self.connect_debug_rx()
+        voltage_measurement = self._bms3_interface.get_measurement()
+        if voltage_measurement == INVALID_VALUE and count > 0:
+            self.disconnect_debug_rx()
+            sleep(0.5)
+            voltage_measurement = \
+                self._get_bms3_voltage_measurement(count=count-1)
         self.disconnect_debug_rx()
         self.disconnect_debug_tx()
-        return int(voltage_measurement)
+        return voltage_measurement
 
     # HMI
     def _ask_for_board_number(self):
+        sentence = '\t\t\tDébut de la séquence de test.'
+        frame = '*' * (16 + len(sentence))
+        frame = '\n\t\t' + frame + '\n'
+        print(
+            frame,
+            sentence,
+            frame)
         board_number = input(
             '\n\t'
             'Veuillez entrer le numéro de la BMS3 sous test.'
             '\n\t'
-            'Ou \'Quit\' pour arrêter les séquences de test.'
+            'Ou \'Quit(Q)\' pour arrêter les séquences de test.'
             '\n')
         if board_number == '':
             self._ask_for_board_number()
-        elif board_number.lower() == 'quit':
+        elif board_number.lower() == 'quit' or board_number.lower() == 'q':
             self._test_in_progress = False
             self._logger.stop_logging(
                 f'BMS3 - {self._test_count} post-prod tests.'
@@ -818,15 +867,11 @@ class Bms3Sequencer(threading.Thread):
                 'et que la fonction SEND est bien activée.',
                 frame)
         if not well_connected:
-            if self._ampmeter is not None:
-                self._ampmeter.kill()
-            if self._voltmeter is not None:
-                self._voltmeter.kill()
             input(
                 '\n'
                 'Appuyer sur la touche ENTER.'
             )
-            exit()
+            self._kill()
 
     def _get_bcd_devices(self) -> list[int]:
         # Seek for all connected device
@@ -855,3 +900,27 @@ class Bms3Sequencer(threading.Thread):
 
     def _tenma_dc_set_voltage(self, value) -> int:
         return self._tenma_dc_power.set_voltage(value)
+
+    # End application
+    def _kill(self):
+        if (
+                hasattr(self, '_control_relay')
+                and
+                self._control_relay is not None):
+            self._control_relay.disconnect()
+        if (
+                hasattr(self, '_ampmeter')
+                and
+                self._ampmeter is not None):
+            self._ampmeter.kill()
+        if (
+                hasattr(self, '_voltmeter')
+                and
+                self._voltmeter is not None):
+            self._voltmeter.kill()
+        if (
+                hasattr(self, '_bms3_interface')
+                and
+                self._bms3_interface is not None):
+            self._bms3_interface.kill()
+        exit()
