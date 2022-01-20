@@ -673,32 +673,32 @@ class Bms3Sequencer():
         self._relay_high_load = {
             'board': "AD", 'relay_number': 2,
             'state': State.Disable}
+        self._relay_debug_rx = {
+            'board': "AD", 'relay_number': 3,
+            'state': State.Disable}
         self._relay_debug_tx = {
             'board': "AD", 'relay_number': 4,
             'state': State.Disable}
-        self._relay_debug_rx = {
+        self._relay_bms3_battery_measurement_minus = {
             'board': "AD", 'relay_number': 5,
             'state': State.Disable}
-        self._relay_swclk = {
+        self._relay_bms3_battery_measurement_plus = {
             'board': "AD", 'relay_number': 6,
             'state': State.Disable}
-        self._relay_nrst = {
+        self._relay_preamplifier_measurement_minus = {
             'board': "AD", 'relay_number': 7,
             'state': State.Disable}
-        self._relay_swdio = {
+        self._relay_preamplifier_measurement_plus = {
             'board': "AD", 'relay_number': 8,
             'state': State.Disable}
-        self._relay_bms3_battery_measurement_minus = {
+        self._relay_swclk = {
             'board': "AB", 'relay_number': 1,
             'state': State.Disable}
-        self._relay_bms3_battery_measurement_plus = {
+        self._relay_nrst = {
             'board': "AB", 'relay_number': 2,
             'state': State.Disable}
-        self._relay_preamplifier_measurement_minus = {
-            'board': "AB", 'relay_number': 7,
-            'state': State.Disable}
-        self._relay_preamplifier_measurement_plus = {
-            'board': "AB", 'relay_number': 8,
+        self._relay_swdio = {
+            'board': "AB", 'relay_number': 3,
             'state': State.Disable}
         self._relay_list = [
             self._relay_tenma_alim,
@@ -711,15 +711,15 @@ class Bms3Sequencer():
             self._relay_current_measurement_out,
             self._relay_low_load,
             self._relay_high_load,
-            self._relay_debug_tx,
             self._relay_debug_rx,
-            self._relay_swclk,
-            self._relay_nrst,
-            self._relay_swdio,
+            self._relay_debug_tx,
             self._relay_bms3_battery_measurement_minus,
             self._relay_bms3_battery_measurement_plus,
             self._relay_preamplifier_measurement_minus,
-            self._relay_preamplifier_measurement_plus
+            self._relay_preamplifier_measurement_plus,
+            self._relay_swclk,
+            self._relay_nrst,
+            self._relay_swdio
         ]
         self._set_bench_state_variables()
 
