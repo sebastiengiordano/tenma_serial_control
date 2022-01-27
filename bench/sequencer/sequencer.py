@@ -644,61 +644,61 @@ class Bms3Sequencer():
     # HAL
     def _set_hal(self):
         self._relay_tenma_alim = {
-            'board': "AC", 'relay_number': 1,
+            'board': "C", 'relay_number': 1,
             'state': State.Disable}
         self._relay_isolated_alim = {
-            'board': "AC", 'relay_number': 2,
+            'board': "C", 'relay_number': 2,
             'state': State.Disable}
         self._relay_usb_vcc = {
-            'board': "AC", 'relay_number': 3,
+            'board': "C", 'relay_number': 3,
             'state': State.Disable}
         self._relay_usb_ground = {
-            'board': "AC", 'relay_number': 4,
+            'board': "C", 'relay_number': 4,
             'state': State.Disable}
         self._relay_push_in = {
-            'board': "AC", 'relay_number': 5,
+            'board': "C", 'relay_number': 5,
             'state': State.Disable}
         self._relay_jmp_18_v = {
-            'board': "AC", 'relay_number': 6,
+            'board': "C", 'relay_number': 6,
             'state': State.Disable}
         self._relay_current_measurement_in = {
-            'board': "AC", 'relay_number': 7,
+            'board': "C", 'relay_number': 7,
             'state': State.Disable}
         self._relay_current_measurement_out = {
-            'board': "AC", 'relay_number': 8,
+            'board': "C", 'relay_number': 8,
             'state': State.Disable}
         self._relay_low_load = {
-            'board': "AD", 'relay_number': 1,
+            'board': "D", 'relay_number': 1,
             'state': State.Disable}
         self._relay_high_load = {
-            'board': "AD", 'relay_number': 2,
+            'board': "D", 'relay_number': 2,
             'state': State.Disable}
         self._relay_debug_rx = {
-            'board': "AD", 'relay_number': 3,
+            'board': "D", 'relay_number': 3,
             'state': State.Disable}
         self._relay_debug_tx = {
-            'board': "AD", 'relay_number': 4,
+            'board': "D", 'relay_number': 4,
             'state': State.Disable}
         self._relay_bms3_battery_measurement_minus = {
-            'board': "AD", 'relay_number': 5,
+            'board': "D", 'relay_number': 5,
             'state': State.Disable}
         self._relay_bms3_battery_measurement_plus = {
-            'board': "AD", 'relay_number': 6,
+            'board': "D", 'relay_number': 6,
             'state': State.Disable}
         self._relay_preamplifier_measurement_minus = {
-            'board': "AD", 'relay_number': 7,
+            'board': "D", 'relay_number': 7,
             'state': State.Disable}
         self._relay_preamplifier_measurement_plus = {
-            'board': "AD", 'relay_number': 8,
+            'board': "D", 'relay_number': 8,
             'state': State.Disable}
         self._relay_swclk = {
-            'board': "AB", 'relay_number': 1,
+            'board': "B", 'relay_number': 1,
             'state': State.Disable}
         self._relay_nrst = {
-            'board': "AB", 'relay_number': 2,
+            'board': "B", 'relay_number': 2,
             'state': State.Disable}
         self._relay_swdio = {
-            'board': "AB", 'relay_number': 3,
+            'board': "B", 'relay_number': 3,
             'state': State.Disable}
         self._relay_list = [
             self._relay_tenma_alim,
@@ -729,7 +729,6 @@ class Bms3Sequencer():
             relay['board'],
             relay['relay_number'],
             relay['state'])
-        sleep(0.1)
 
     def _desactivate_relay(self, relay):
         relay['state'] = State.Disable
@@ -737,7 +736,6 @@ class Bms3Sequencer():
             relay['board'],
             relay['relay_number'],
             relay['state'])
-        sleep(0.1)
 
     def _set_bench_state_variables(self):
         self._tenma_alim_state = ConnectionState.Disconnected

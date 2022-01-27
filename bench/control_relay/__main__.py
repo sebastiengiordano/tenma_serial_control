@@ -11,8 +11,8 @@ control_relay = ControlRelay(True)
 while input(
         '\n\tPress ENTER to continu, '
         'or any key + ENTER to end test sequence\n') == '':
-    for board in ('AD',):
-    # for board in ('AB', 'AC', 'AD'):
+    for board in ('D',):
+    # for board in ('B', 'C', 'D'):
         for relay in range(1, 9):
             control_relay.manage_relay(board, relay, State.Enable)
             sleep(0.3)
