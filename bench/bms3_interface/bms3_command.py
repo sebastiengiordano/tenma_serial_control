@@ -37,9 +37,9 @@ class BMS3Command:
 
     def write(self, firmware_label: str
               ) -> Union[CalledProcessError, TimeoutExpired, CompletedProcess]:
-        self._load_firmware(firmware_label)
+        self._set_firmware_path(firmware_label)
         st_flash = StFlash()
-        return st_flash.write(self._firmware_path)
+        return st_flash.write(self._firmware_path), st_flash.get_std_out()
 
     def _connect_to_serial(
             self,
@@ -133,7 +133,7 @@ class BMS3Command:
                 files_in_folder_path += files_in_subfolder
         return files_in_folder_path
 
-    def _load_firmware(self, firmware_label: str) -> bool:
+    def _set_firmware_path(self, firmware_label: str) -> bool:
         # Check firmware avaibility
         firmware = firmware_label + '.bin'
         firmware_files_list = self.get_firmware_files_list()
@@ -141,7 +141,7 @@ class BMS3Command:
             raise Exception(
                 f'This {firmware_label} firmware is not '
                 f'avaible in {self._firmware_folder_path}.')
-        # Load firmware
+        # Set firmware path
         self._firmware_path = os_path_join(
             self._firmware_folder_path,
             firmware)

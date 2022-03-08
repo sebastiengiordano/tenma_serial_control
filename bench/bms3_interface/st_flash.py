@@ -35,16 +35,26 @@ class StFlash:
         self._send_write_command()
         return self.process_return
 
-    def get_error(self):
+    def get_std_out(self):
         self.process_return.stdout = self._clean_std_output(self.process_return.stdout)
         self.process_return.stderr = self._clean_std_output(self.process_return.stderr)
 
         max_size = len(self.process_return.stdout)
-        std_out = self.process_return.stdout[0::max(1,max_size-1)]
-        std_out = std_out + [
-            self.process_return.stderr[-1],
-            'Command: '
-            + str(self._last_cmd)]
+        if max_size == 0:
+            std_out = []
+        else:
+            std_out = self.process_return.stdout[0::max(1,max_size-1)]
+
+        max_size = len(self.process_return.stderr)
+        if max_size == 0:
+            std_out = std_out + [
+                'Command: '
+                + str(self._last_cmd)]
+        else:
+            std_out = std_out + [
+                self.process_return.stderr[-1],
+                'Command: '
+                + str(self._last_cmd)]
         return std_out
 
     def _set_st_flash_path(self):
@@ -68,8 +78,6 @@ class StFlash:
             self.process_return = subprocess.run(
                 cmd,
                 capture_output=True,
-                # stdout=subprocess.PIPE,
-                # stderr=subprocess.PIPE,
                 timeout=timeout,
                 check=True)
         except Exception as exc:
@@ -119,7 +127,7 @@ if __name__ == "__main__":
         process_return = st_flash.write(bin_path)
 
         if isinstance(process_return, subprocess.SubprocessError):
-            print(st_flash.get_error())
+            print(st_flash.get_std_out())
         print(f'Time elapse: {time.time()-start} s.')
         input("\nPress a key to continu...")
 

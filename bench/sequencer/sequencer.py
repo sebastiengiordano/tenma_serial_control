@@ -1,3 +1,4 @@
+from subprocess import CompletedProcess, TimeoutExpired
 import usb.core
 from time import sleep
 from sys import exit
@@ -125,11 +126,15 @@ class Bms3Sequencer():
         self._activate_relay(self._relay_swclk)
         self._activate_relay(self._relay_nrst)
         self._activate_relay(self._relay_swdio)
+        self._activate_relay(self._relay_2V5)
+        self._activate_relay(self._relay_gnd)
 
     def disconnect_reprog(self):
         self._desactivate_relay(self._relay_swclk)
         self._desactivate_relay(self._relay_nrst)
         self._desactivate_relay(self._relay_swdio)
+        self._desactivate_relay(self._relay_2V5)
+        self._desactivate_relay(self._relay_gnd)
 
     # Connect/disconnected preamplifier
     def connect_low_load(self):
@@ -198,7 +203,10 @@ class Bms3Sequencer():
 
             # BMS3 load firmware if requested
             if self._load_firmware_enable:
-                self._load_firmware(self._firmware_label)
+                process_return, std_out = self._load_firmware(self._firmware_label)
+                if not isinstance(process_return, CompletedProcess):
+                    self._manage_reprog_trouble(process_return, std_out)
+                    raise Exception(std_out)
 
             # BMS3 wake up
             self.bms3_wake_up()
@@ -700,6 +708,12 @@ class Bms3Sequencer():
         self._relay_swdio = {
             'board': "B", 'relay_number': 3,
             'state': State.Disable}
+        self._relay_2V5 = {
+            'board': "B", 'relay_number': 4,
+            'state': State.Disable}
+        self._relay_gnd = {
+            'board': "B", 'relay_number': 5,
+            'state': State.Disable}
         self._relay_list = [
             self._relay_tenma_alim,
             self._relay_isolated_alim,
@@ -719,7 +733,9 @@ class Bms3Sequencer():
             self._relay_preamplifier_measurement_plus,
             self._relay_swclk,
             self._relay_nrst,
-            self._relay_swdio
+            self._relay_swdio,
+            self._relay_2V5,
+            self._relay_gnd
         ]
         self._set_bench_state_variables()
 
@@ -741,7 +757,6 @@ class Bms3Sequencer():
         self._tenma_alim_state = ConnectionState.Disconnected
         self._isolated_alim_state = ConnectionState.Disconnected
         self._tenma_dc_power_state = State.Disable
-        self._bms3_state = ConnectionState.Disconnected
 
     # BMS3 interface
     def _load_firmware(self, firmware_label):
@@ -750,13 +765,11 @@ class Bms3Sequencer():
         self._tenma_dc_power_on()
         self.press_push_in_button()
         self.connect_reprog()
-        if self._bms3_state == ConnectionState.Disconnected:
-            self._bms3_interface.connect_to_bms3()
-            self._bms3_state = ConnectionState.Connected
-        self._bms3_interface.write(firmware_label)
+        process_return, std_out = self._bms3_interface.write(firmware_label)
         self.disconnect_reprog()
         self.release_push_in_button()
         self._tenma_dc_power_off()
+        return process_return, std_out
 
     def _get_bms3_voltage_measurement(self, count=3) -> int:
         self.connect_debug_tx()
@@ -774,13 +787,13 @@ class Bms3Sequencer():
     def _set_firmware_label(self):
         self._firmware_files_list = self._bms3_interface.get_firmware_files_list()
         # Keep only '.bin' file(s)
-        for index, firmware in enumerate(self._firmware_files_list.copy()):
+        for firmware in self._firmware_files_list.copy():
             if not firmware[-4:] == '.bin':
                 self._firmware_files_list.remove(firmware)
-            else:
-                # Removed '.bin' extention
-                self._firmware_files_list[index] = \
-                    self._firmware_files_list[index][:-4]
+        # Removed '.bin' extention
+        for index, firmware in enumerate(self._firmware_files_list):
+            self._firmware_files_list[index] = \
+                self._firmware_files_list[index][:-4]
         self._ask_firmware_choice()
 
     def _ask_firmware_choice(self):
@@ -815,15 +828,22 @@ class Bms3Sequencer():
             print(f"   {space_before_key}{key}: {entry.option}")
         print(menu_frame)
 
+    def _manage_reprog_trouble(self, process_return, std_out):
+        if 'Failed to connect to target' in std_out:
+            self._display_sentence_inside_frame(
+                'Veuillez vérifier les branchements du banc de test.'
+            )
+        elif isinstance(process_return, TimeoutExpired):
+            self._display_sentences_inside_frame([
+                'Reprogrammation impossible.',
+                '',
+                'Veuillez débrancher/rebrancher le STLink.']
+            )
+        input('\n\tAppuyer sur la touche \'Entrée\' pour continuer...')
+
     # HMI
     def _ask_for_board_number(self):
-        sentence = '\t\t\tDébut de la séquence de test.'
-        frame = '*' * (16 + len(sentence))
-        frame = '\n\t\t' + frame + '\n'
-        print(
-            frame,
-            sentence,
-            frame)
+        self._display_sentence_inside_frame('Début de la séquence de test.')
         board_number = input(
             '\n\t'
             'Veuillez entrer le numéro de la BMS3 sous test.'
@@ -865,6 +885,29 @@ class Bms3Sequencer():
             print('\t', frame)
             return False
         return True
+
+    def _display_sentence_inside_frame(self, sentence: str):
+        sentence = '\t\t\t' + sentence
+        frame = '*' * (16 + len(sentence))
+        frame = '\n\t\t' + frame + '\n'
+        print(
+            frame,
+            sentence,
+            frame)
+
+    def _display_sentences_inside_frame(self, sentences: list[str]):
+        max_size = 0
+        for sentence in sentences:
+            if len(sentence) > max_size:
+                max_size = len(sentence)
+        for index, sentence in enumerate(sentences):
+                sentences[index] = '\t\t' + sentence.center(max_size + 8)
+        frame = '*' * (16 + max_size)
+        frame = '\t\t' + frame
+        print('\n' + frame)
+        for sentence in sentences:
+            print(sentence)
+        print(frame + '\n')
 
     # Measurement tools
     def _set_multimeter(self):
