@@ -146,15 +146,10 @@ class Logger:
     def _generate_logging_file_path(self) -> None:
         '''Generate a new default logging file path'''
         logging_files_list = self._get_logging_files_list()
-        today = date.today()
-        today_in_str = (
-            str(today.year) + "_"
-            + str(today.month) + "_"
-            + str(today.day)
-            )
+        today = date.today().strftime('%Y-%m-%d')
         for i in range(10000):
             file_name = (
-                today_in_str
+                today
                 + self._logging_logging_name
                 + self._file_number_padding(i)
                 )
