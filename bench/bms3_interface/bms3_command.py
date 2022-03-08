@@ -3,15 +3,17 @@ This module aims to manage BMS3 firmware download and to read data
 send by BMS3 in its DEBUG_TX output.
 '''
 
+import imp
 from os.path import dirname, join as os_path_join, isfile
 from os import listdir
-from socket import timeout
 import serial
 import serial.tools.list_ports
 from time import sleep
 from threading import Thread
+from subprocess import CalledProcessError, TimeoutExpired, CompletedProcess
+from typing import Union
 
-from .stm32loader import CommandInterface, CmdException
+from .st_flash import StFlash
 
 ADDRESS = 0x08000000
 INVALID_VALUE = -1 * 0xFFFFFFFF
@@ -20,7 +22,6 @@ INVALID_VALUE = -1 * 0xFFFFFFFF
 class BMS3Command:
 
     def __init__(self, verbose=False):
-        self._command = CommandInterface()
         self._verbose = verbose
         self._voltage_measurement = INVALID_VALUE
         self._end_measurement = False
@@ -30,10 +31,15 @@ class BMS3Command:
     def get_measurement(self):
         # Waiting for reading last value
         sleep(.5)
-        # 
         voltage_measurement = self._voltage_measurement
         self._voltage_measurement = INVALID_VALUE
         return voltage_measurement
+
+    def write(self, firmware_label: str
+              ) -> Union[CalledProcessError, TimeoutExpired, CompletedProcess]:
+        self._load_firmware(firmware_label)
+        st_flash = StFlash()
+        return st_flash.write(self._firmware_path)
 
     def _connect_to_serial(
             self,
@@ -102,7 +108,7 @@ class BMS3Command:
             module_dir,
             'bms3_firmwares')
 
-    def _get_firmware_files_list(self) -> list[str]:
+    def get_firmware_files_list(self) -> list[str]:
         firmware_files_list = self._files_in_folder(
             self._firmware_folder_path)
         return firmware_files_list
@@ -127,63 +133,15 @@ class BMS3Command:
                 files_in_folder_path += files_in_subfolder
         return files_in_folder_path
 
-    def _connect_to_bms3(self):
-        for port in self._port_list:
-            try:
-                ser = self._connect_to_serial(
-                    port=port,
-                    baudrate=115200
-                    )
-                self._command.set_serial(ser)
-                self._command.cmdGetVersion()
-                self._port_list.pop(port)
-                return
-            except:
-                pass
-        raise CmdException('Impossible de se connecter à la BMS3.')
-
     def _load_firmware(self, firmware_label: str) -> bool:
         # Check firmware avaibility
         firmware = firmware_label + '.bin'
-        firmware_files_list = self._get_firmware_files_list
+        firmware_files_list = self.get_firmware_files_list()
         if firmware not in firmware_files_list:
-            raise CmdException(
+            raise Exception(
                 f'This {firmware_label} firmware is not '
                 f'avaible in {self._firmware_folder_path}.')
         # Load firmware
-        firmware_path = os_path_join(
+        self._firmware_path = os_path_join(
             self._firmware_folder_path,
             firmware)
-        data = map(lambda c: ord(c), open(firmware_path, 'rb').read())
-        self._command.writeMemory(ADDRESS, data)
-        # Check if the firmware is well loaded
-        verify = self._command.readMemory(ADDRESS, len(data))
-        self._command.releaseChip()
-        if(data == verify):
-            return True
-        else:
-            return False
-
-    def _get_port_list(self) -> list[str]:
-        # Seek for all connected device
-        available_serial_port = serial.tools.list_ports.comports()
-        port_list = []
-        for port, desc, hwid in available_serial_port:
-            port_list.append(port)
-        return port_list
-
-    def _get_debug_tx_serial(self):
-        for port in self._port_list:
-            try:
-                ser = self._connect_to_serial(
-                    port=port,
-                    baudrate=115200
-                    )
-                line = ser.readline()
-                line = line.decode(encoding='utf-8')
-                if int(line) >= 0:
-                    return ser
-            except serial.SerialException:
-                continue
-        raise CmdException(
-            'Impossible de lire sur les données du DEBUG_TX de la BMS3.')

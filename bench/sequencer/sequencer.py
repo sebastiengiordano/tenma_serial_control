@@ -10,6 +10,7 @@ from bench.logger.logger import Logger
 from bench.bms3_interface.bms3_command import BMS3Command, INVALID_VALUE
 
 from bench.utils.utils import State, ConnectionState
+from bench.utils.menus import Menu, menu_frame_design
 
 VOLTAGE_MEASUREMENT_TOLERANCE = 5               # %
 PREAMP_VOLTAGE_TOLERANCE = 100                  # mV
@@ -27,8 +28,6 @@ BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = -100     # mA
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
 LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
-
-LOAD_FIRMWARE = False
 
 ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
@@ -51,6 +50,7 @@ class Bms3Sequencer():
         self._set_hal()
         # Set BMS3 interface
         self._bms3_interface = BMS3Command()
+        self._set_firmware_label()
         # Set other variables
         self._test_in_progress = True
         self._test_count = 0
@@ -197,8 +197,8 @@ class Bms3Sequencer():
             self._ask_for_board_number()
 
             # BMS3 load firmware if requested
-            if LOAD_FIRMWARE:
-                self._load_firmware('BMS_3.0_v3_v01.11')
+            if self._load_firmware_enable:
+                self._load_firmware(self._firmware_label)
 
             # BMS3 wake up
             self.bms3_wake_up()
@@ -753,7 +753,7 @@ class Bms3Sequencer():
         if self._bms3_state == ConnectionState.Disconnected:
             self._bms3_interface.connect_to_bms3()
             self._bms3_state = ConnectionState.Connected
-        self._bms3_interface.load_firmware(firmware_label)
+        self._bms3_interface.write(firmware_label)
         self.disconnect_reprog()
         self.release_push_in_button()
         self._tenma_dc_power_off()
@@ -770,6 +770,50 @@ class Bms3Sequencer():
         self.disconnect_debug_rx()
         self.disconnect_debug_tx()
         return voltage_measurement
+
+    def _set_firmware_label(self):
+        self._firmware_files_list = self._bms3_interface.get_firmware_files_list()
+        # Keep only '.bin' file(s)
+        for index, firmware in enumerate(self._firmware_files_list.copy()):
+            if not firmware[-4:] == '.bin':
+                self._firmware_files_list.remove(firmware)
+            else:
+                # Removed '.bin' extention
+                self._firmware_files_list[index] = \
+                    self._firmware_files_list[index][:-4]
+        self._ask_firmware_choice()
+
+    def _ask_firmware_choice(self):
+        # Display menu choice
+        while True:
+            self._display_menu()
+            answer = input('\n\tQuel est votre choix ?\t').upper()
+            if answer in self.menu.keys():
+                break
+        if answer == 'N':
+            self._load_firmware_enable = False
+        else:
+            self._load_firmware_enable = True
+            self._firmware_label = self.menu[answer].option
+
+    def _display_menu(self):
+        self.menu = Menu()
+        for firmware in self._firmware_files_list:
+            self.menu.add('auto', firmware, lambda: None)
+        self.menu.add('N', 'Ne pas programmer les BMS3.', lambda: None)
+        key_max_lenght, option_max_lenght = self.menu.max_lenght()
+        menu_frame, menu_label = menu_frame_design(
+            'Liste des firmwares',
+            key_max_lenght
+            + option_max_lenght
+            + len("  : "))
+        print("\n" + menu_frame)
+        print(menu_label)
+        print(menu_frame)
+        for key, entry in self.menu.items():
+            space_before_key = " " * (key_max_lenght - len(key))
+            print(f"   {space_before_key}{key}: {entry.option}")
+        print(menu_frame)
 
     # HMI
     def _ask_for_board_number(self):
