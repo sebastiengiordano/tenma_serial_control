@@ -63,6 +63,11 @@ class Tenma_72_2535_manage:
         sleep(WAIT_AFTER_SETTING)
         return value
 
+    def get_current(self, channel: int = 1) -> float:
+        '''Get the current value (in mA)'''
+
+        return self.tenma72_2535.readCurrent(channel)
+
     def disconnect(self):
         if self._comm_port_status == 'Open':
             self.power('OFF')
