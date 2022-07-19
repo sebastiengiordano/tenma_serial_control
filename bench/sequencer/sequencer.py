@@ -205,6 +205,7 @@ class Bms3Sequencer():
         try:
             # Ask for board number
             self._ask_for_board_number()
+            board_number = self._test_report['Board number']
 
             # BMS3 load firmware if requested
             if self._load_firmware_enable:
@@ -233,6 +234,23 @@ class Bms3Sequencer():
 
         except Exception as err:
             self._add_exception_to_log(err)
+
+            # Display error
+            print('\n\t'
+                  'L\'erreur suivante est survenu :'
+                  '\n\t\t'
+                  f'{err}'
+                  '\n\t'
+                  f'Lors du test de la carte {board_number}.')
+
+            # Stop logging
+            self._logger.stop_logging(
+                f'BMS3 - {self._test_count} tests.')
+            input('\n\t\t'
+                  'Test terminé.'
+                  '\n\n\t'
+                  '(Appuyer sur la touche ENTER)')
+            exit()
 
         finally:
             # Update log file
