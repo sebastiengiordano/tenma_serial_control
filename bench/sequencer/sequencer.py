@@ -3,6 +3,7 @@ import usb.core
 from time import sleep
 from sys import exit
 from os import system
+from os.path import join as os_path_join, normpath
 
 from bench.control_relay.control_relay import ControlRelay
 from bench.tenma.tenma_dc_power import Tenma_72_2535_manage
@@ -33,6 +34,8 @@ LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
 ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
 
+ILLEGAL_NTFS_CHARS = "[<>:/\\|?*\"]|[\0-\31]"
+
 
 class Bms3Sequencer():
 
@@ -55,6 +58,8 @@ class Bms3Sequencer():
         # Set other variables
         self._test_in_progress = True
         self._test_count = 0
+        self._test_voltage = ''
+        self._lot_number = ''
         # Run tests
         self.run()
 
@@ -499,7 +504,17 @@ class Bms3Sequencer():
         self.desactivate_jmp_18_v()
 
     # Logging
-    def _set_logger(self):
+    def _set_logger(self) -> None:
+        logging_name = self._set_logging_name()
+        self._logger = Logger(
+            logging_name=logging_name,
+            logging_folder=normpath(os_path_join(LOGGING_FOLDER + self._lot_number)),
+            columns_width=LOG_COLUMNS_WIDTH)
+        self._test_report = self._init_test_report()
+
+    def _set_logging_name(self) -> str:
+        logging_name= ILLEGAL_NTFS_CHARS
+        while(True in [caracter in ILLEGAL_NTFS_CHARS for caracter in logging_name]):
         logging_name = input(
             '\n\t'
             'Entrer le nom de la série de test.'
@@ -511,11 +526,38 @@ class Bms3Sequencer():
         )
         if logging_name == '':
             logging_name = DEFAULT_LOG_LABEL
-        self._logger = Logger(
-            logging_name=logging_name,
-            logging_folder=LOGGING_FOLDER,
-            columns_width=LOG_COLUMNS_WIDTH)
-        self._test_report = self._init_test_report()
+
+        logging_name = self._set_9_18_voltage(logging_name)
+        logging_name = self._set_lot_number(logging_name)
+
+        return logging_name
+
+    def _set_9_18_voltage(self, logging_name: str) -> str:
+        while(self._test_voltage not in ['9', '18']):
+            self._test_voltage = input(
+                '\n\t'
+                'Entrer le type de test (9 / 18 V)'
+                '\n\t\t'
+                '1: 18 V'
+                '\n\t\t'
+                '9: 9 V'
+                '\n'
+            )
+            if self._test_voltage == '1':
+                self._test_voltage = '18'
+
+        return logging_name + '_' + self._test_voltage + 'V'
+
+    def _set_lot_number(self, logging_name: str) -> str:
+        while(self._lot_number == '' or (True in [caracter in ILLEGAL_NTFS_CHARS for caracter in self._lot_number])):
+            self._lot_number = input(
+                '\n\t'
+                'Entrer le numéro de lot :'
+                '\n\t\t'
+            )
+         
+
+        return logging_name + '_' + self._lot_number
 
     def _init_test_report(self) -> dict:
         return {
@@ -863,7 +905,7 @@ class Bms3Sequencer():
         else:
             if not self._check_bms3_number_format(board_number):
                 self._ask_for_board_number()
-            self._test_report['Board number'] = board_number
+            self._test_report['Board number'] = self._lot_number + '_' + board_number
 
     def _add_exception_to_log(self, err):
         self._logger.add_lines_to_logging_file([''])
