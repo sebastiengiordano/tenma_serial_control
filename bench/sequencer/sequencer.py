@@ -264,7 +264,9 @@ class Bms3Sequencer():
             # Disable all relay
             self.disable_all_relays()
 
-        # Battery voltage measurement test
+        ####################################
+        # Battery voltage measurement test #
+        ####################################
     def _battery_voltage_measurement_test(self):
         # Init test
         test_report_status = []
@@ -311,7 +313,9 @@ class Bms3Sequencer():
         else:
             return False
 
-        # Preamplifier test
+        #####################
+        # Preamplifier test #
+        #####################
     def _preamplifier_test(self):
         # Init test
         test_report_status = []
@@ -401,7 +405,9 @@ class Bms3Sequencer():
         else:
             return False
 
-        # Current consomption in sleep mode test
+        ##########################################
+        # Current consomption in sleep mode test #
+        ##########################################
     def _current_consomption_in_sleep_mode_test(self):
         # Init test
         self.activate_current_measurement()
@@ -426,7 +432,9 @@ class Bms3Sequencer():
                 'Current consomption in sleep mode'][
                     'status'] = 'Test OK'
 
-        # Battery charge test
+        #######################
+        # Battery charge test #
+        #######################
     def _battery_charge_test(self):
         # Init test
         self.connect_isolated_alim()
@@ -448,7 +456,9 @@ class Bms3Sequencer():
                 'Battery charge'][
                     'status'] = 'Test OK'
 
-        # LED colors test
+        ###################
+        # LED colors test #
+        ###################
     def _led_colors_test(self):
         sentence = '\tTest de la couleur des LED.'
         frame = '*' * (16 + len(sentence))
@@ -538,15 +548,15 @@ class Bms3Sequencer():
     def _set_logging_name(self) -> str:
         logging_name= ILLEGAL_NTFS_CHARS
         while(True in [caracter in ILLEGAL_NTFS_CHARS for caracter in logging_name]):
-        logging_name = input(
-            '\n\t'
-            'Entrer le nom de la série de test.'
-            '\n\n\t'
-            'Rmq: ou taper sur ENTER pour utiliser'
-            '\n\t'
-            f'le nom par défaut: {DEFAULT_LOG_LABEL}.'
-            '\n'
-        )
+            logging_name = input(
+                '\n\t'
+                'Entrer le nom de la série de test.'
+                '\n\n\t'
+                'Rmq: ou taper sur ENTER pour utiliser'
+                '\n\t'
+                f'le nom par défaut: {DEFAULT_LOG_LABEL}.'
+                '\n'
+            )
         if logging_name == '':
             logging_name = DEFAULT_LOG_LABEL
 
