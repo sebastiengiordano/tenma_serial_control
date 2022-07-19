@@ -253,6 +253,11 @@ class Bms3Sequencer():
             exit()
 
         finally:
+            # Display test result
+            print('\n\t'
+                  f'Resultat du test de la carte {board_number} => '
+                  f'{self._test_status()}')
+
             # Update log file
             self._update_log()
 
@@ -915,15 +920,18 @@ class Bms3Sequencer():
         elif board_number.lower() == 'quit' or board_number.lower() == 'q':
             self._test_in_progress = False
             self._logger.stop_logging(
-                f'BMS3 - {self._test_count} post-prod tests.'
+                f'BMS3 - {self._test_count} tests.'
             )
-            print('\n\t\t'
-                  'Test end.')
+            input('\n\t\t'
+                  'Test terminé.'
+                  '\n\n\t'
+                  '(Appuyer sur la touche ENTER)')
             exit()
         else:
             if not self._check_bms3_number_format(board_number):
                 self._ask_for_board_number()
             self._test_report['Board number'] = self._lot_number + '_' + board_number
+            self._test_count += 1
 
     def _add_exception_to_log(self, err):
         self._logger.add_lines_to_logging_file([''])
