@@ -21,6 +21,8 @@ V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000               # Ohm
 V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V = 470         # Ohm
 V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500       # Ohm
 V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000             # Ohm
+CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 0.001    # mA
+CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 0.01    # mA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
 
@@ -477,15 +479,15 @@ class Bms3Sequencer():
         self._test_report['Current consomption in sleep mode']['value'] = (
             str(current_measurement)
             + ' / '
-            + str(NO_LOAD_CURRENT_LOW_THRESHOLD)
+            + str(CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD)
             + ' / '
-            + str(NO_LOAD_CURRENT_HIGH_THRESHOLD))
+            + str(CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD))
 
         # Check measurement values
         if (
-                current_measurement < NO_LOAD_CURRENT_HIGH_THRESHOLD
+                current_measurement < CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD
                 and
-                current_measurement > NO_LOAD_CURRENT_LOW_THRESHOLD):
+                current_measurement > CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD):
             self._test_report[
                 'Current consomption in sleep mode'][
                     'status'] = 'Test OK'
