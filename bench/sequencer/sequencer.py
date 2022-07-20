@@ -119,9 +119,11 @@ class Bms3Sequencer():
 
     def connect_debug_tx(self):
         self._activate_relay(self._relay_debug_tx)
+        self._activate_relay(self._relay_gnd)
 
     def disconnect_debug_tx(self):
         self._desactivate_relay(self._relay_debug_tx)
+        self._desactivate_relay(self._relay_gnd)
 
     def connect_debug_rx(self):
         self._activate_relay(self._relay_debug_rx)
