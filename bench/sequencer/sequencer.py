@@ -14,18 +14,15 @@ from bench.bms3_interface.bms3_command import BMS3Command, INVALID_VALUE
 from bench.utils.utils import State, ConnectionState
 from bench.utils.menus import Menu, menu_frame_design
 
-VOLTAGE_MEASUREMENT_TOLERANCE = 5               # %
-V_OUT_TOLERANCE = 100                           # mV
-NO_LOAD_CURRENT_HIGH_THRESHOLD = 0.01           # mA
-NO_LOAD_CURRENT_LOW_THRESHOLD = 0.001           # mA
-LOW_LOAD_CURRENT_HIGH_THRESHOLD = 28            # mA
-LOW_LOAD_CURRENT_LOW_THRESHOLD = 32             # mA
-HIGH_LOAD_CURRENT_HIGH_THRESHOLD = 1            # mA
-HIGH_LOAD_CURRENT_LOW_THRESHOLD = 1.1           # mA
-HIGH_LOAD_CURRENT_HIGH_THRESHOLD = 1            # mA
-HIGH_LOAD_CURRENT_LOW_THRESHOLD = 1.1           # mA
-BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270     # mA
-BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230      # mA
+VOLTAGE_MEASUREMENT_TOLERANCE = 5                       # %
+V_OUT_TOLERANCE = 100                                   # mV
+V_OUT_TEST_CURRENT_TOLERANCE = 5                        # %
+V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000               # Ohm
+V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V = 470         # Ohm
+V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500       # Ohm
+V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000             # Ohm
+BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
+BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
 
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
@@ -143,15 +140,22 @@ class Bms3Sequencer():
 
     # Connect/disconnected Vout
     def connect_low_load(self):
-        self._activate_relay(self._relay_low_load)
         self._desactivate_relay(self._relay_high_load)
+        if self._test_voltage == '9':
+            self._activate_relay(self._relay_low_load_9_V)
+        else:
+            self._activate_relay(self._relay_low_load_18_V)
+        sleep(.5)
 
     def connect_high_load(self):
+        self._desactivate_relay(self._relay_low_load_9_V)
+        self._desactivate_relay(self._relay_low_load_18_V)
         self._activate_relay(self._relay_high_load)
-        self._desactivate_relay(self._relay_low_load)
+        sleep(.5)
 
     def disconnect_load(self):
-        self._desactivate_relay(self._relay_low_load)
+        self._desactivate_relay(self._relay_low_load_9_V)
+        self._desactivate_relay(self._relay_low_load_18_V)
         self._desactivate_relay(self._relay_high_load)
 
     # Connect/disconnected measurement tools
@@ -200,7 +204,9 @@ class Bms3Sequencer():
     # Private methods #
     ###################
 
-    # Test procedures
+                #######################
+                #   Test procedures   #
+                #######################
     def _test_sequence(self):
         try:
             # Ask for board number
@@ -321,56 +327,101 @@ class Bms3Sequencer():
         test_report_status = []
         self.activate_current_measurement()
         self.activate_v_out_measurement()
+        # Set voltage to check and current threshold
+        (voltage_to_check,
+        low_load_current_low_threshold,
+        low_load_current_high_threshold,
+        high_load_current_low_threshold,
+        high_load_current_high_threshold) = self._v_out_test_set_value_to_check()
 
-        # Connected low load and check BMS3 behavior
+        # Test low load
         self.connect_low_load()
-        sleep(.5)
         test_report_status.append(
             self._v_out_test_check(
-                9000,
-                LOW_LOAD_CURRENT_LOW_THRESHOLD,
-                LOW_LOAD_CURRENT_HIGH_THRESHOLD))
+                voltage_to_check,
+                low_load_current_low_threshold,
+                low_load_current_high_threshold))
 
-        # Disconnected low load and check BMS3 behavior
+        # Disconnect load and wait for BMS3 detection (300 ms in source code)
         self.disconnect_load()
-        self.activate_bms3_battery_measurement()
         sleep(.5)
-            # Get battery voltage in order to check that its
-            # the same voltage at Vout
-        voltage_measurement = self._voltmeter.get_measurement()
-        self.activate_v_out_measurement()
-        sleep(.5)
-        test_report_status.append(
-            self._v_out_test_check(
-                voltage_measurement,
-                NO_LOAD_CURRENT_LOW_THRESHOLD,
-                NO_LOAD_CURRENT_HIGH_THRESHOLD))
 
-        # Connected high load and check BMS3 behavior
+        # Test high load
         self.connect_high_load()
-        sleep(.5)
         test_report_status.append(
             self._v_out_test_check(
-                9000,
-                HIGH_LOAD_CURRENT_LOW_THRESHOLD,
-                HIGH_LOAD_CURRENT_HIGH_THRESHOLD))
+                voltage_to_check,
+                high_load_current_low_threshold,
+                high_load_current_high_threshold))
+
+        # Disconnect load and wait for BMS3 detection (300 ms in source code)
+        self.disconnect_load()
+        sleep(.5)
+
+        # Test no load
+        test_report_status = self._v_out_test_no_load(test_report_status)
 
         # Evaluate test reports status
-        if False not in test_report_status:
-            self._test_report[
-                'Vout test'][
-                    'status'] = 'Test OK'
+        self._v_out_evaluate_test(test_report_status)
 
         # End Vout test
         self.disconnect_load()
+        # Wait for BMS3 detection (300 ms in source code)
+        sleep(.5)
+
+    def _v_out_test_set_value_to_check(self) -> tuple[int]:
+        if self._test_voltage == '9':
+            # Set voltage_to_check and current threshold for Vout = 9 V
+            voltage_to_check = 9000
+            low_load_current = (voltage_to_check
+                       / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V)
+            high_load_current = (voltage_to_check
+                       / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+        else:
+            # Set voltage_to_check and current threshold for Vout = 18 V
+            voltage_to_check = 18000
+            low_load_current = (voltage_to_check
+                       / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V)
+            high_load_current = (voltage_to_check
+                       / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+        return (
+            voltage_to_check,
+            int(low_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100),
+            int(low_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100),
+            int(high_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100),
+            int(high_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100))
+
+    def _v_out_test_no_load(self, test_report_status: list) -> list:
+        # Get battery voltage in order to check that
+        # its the same voltage as Vout
+        self.activate_bms3_battery_measurement()
+        sleep(.5)
+        battery_voltage_measurement = self._voltmeter.get_measurement()
+        self.activate_v_out_measurement()
+        sleep(.5)
+        # Set current threshold
+        current_low_threshold = int(
+            battery_voltage_measurement
+            / V_OUT_TEST_RESISTOR_WHEN_NO_LOAD
+            * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100)
+        current_high_threshold = int(
+            battery_voltage_measurement
+            / V_OUT_TEST_RESISTOR_WHEN_NO_LOAD
+            * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100)
+        test_report_status.append(
+            self._v_out_test_check(
+                battery_voltage_measurement,
+                current_low_threshold,
+                current_high_threshold))
+        return test_report_status
 
     def _v_out_test_check(
             self,
-            voltage_to_check,
-            current_low_threshold,
-            current_high_threshold):
+            voltage_to_check: int,
+            current_low_threshold: int,
+            current_high_threshold: int) -> list:
         # Get measurements
-        voltage_measurement = self._voltmeter.get_measurement()
+        v_out_measurement = self._voltmeter.get_measurement()
         current_measurement = self._ampmeter.get_measurement()
 
         # Set voltage threshold
@@ -379,7 +430,7 @@ class Bms3Sequencer():
 
         # Add measurement values to test report
         self._test_report['Vout test']['voltage values'].append(
-            str(voltage_measurement)
+            str(v_out_measurement)
             + ' / '
             + str(voltage_to_check))
         self._test_report['Vout test']['current values'].append(
@@ -392,9 +443,9 @@ class Bms3Sequencer():
         # Check measurement values
         if (
                 (
-                    voltage_measurement < voltage_high_threshold
+                    v_out_measurement < voltage_high_threshold
                     and
-                    voltage_measurement > voltage_low_threshold)
+                    v_out_measurement > voltage_low_threshold)
                 and
                 (
                     current_measurement < current_high_threshold
@@ -404,6 +455,13 @@ class Bms3Sequencer():
             return True
         else:
             return False
+
+    def _v_out_evaluate_test(self, test_report_status: list):
+        # Evaluate test reports status
+        if False not in test_report_status:
+            self._test_report[
+                'Vout test'][
+                    'status'] = 'Test OK'
 
         ##########################################
         # Current consomption in sleep mode test #
@@ -750,10 +808,10 @@ class Bms3Sequencer():
         self._relay_current_measurement_out = {
             'board': "C", 'relay_number': 8,
             'state': State.Disable}
-        self._relay_low_load = {
+        self._relay_high_load = {
             'board': "D", 'relay_number': 1,
             'state': State.Disable}
-        self._relay_high_load = {
+        self._relay_low_load_9_V = {
             'board': "D", 'relay_number': 2,
             'state': State.Disable}
         self._relay_debug_rx = {
@@ -789,6 +847,9 @@ class Bms3Sequencer():
         self._relay_gnd = {
             'board': "B", 'relay_number': 5,
             'state': State.Disable}
+        self._relay_low_load_18_V = {
+            'board': "B", 'relay_number': 6,
+            'state': State.Disable}
         self._relay_list = [
             self._relay_tenma_alim,
             self._relay_isolated_alim,
@@ -798,8 +859,8 @@ class Bms3Sequencer():
             self._relay_jmp_18_v,
             self._relay_current_measurement_in,
             self._relay_current_measurement_out,
-            self._relay_low_load,
             self._relay_high_load,
+            self._relay_low_load_9_V,
             self._relay_debug_rx,
             self._relay_debug_tx,
             self._relay_bms3_battery_measurement_minus,
@@ -810,7 +871,8 @@ class Bms3Sequencer():
             self._relay_nrst,
             self._relay_swdio,
             self._relay_2V5,
-            self._relay_gnd
+            self._relay_gnd,
+            self._relay_low_load_18_V
         ]
         self._set_bench_state_variables()
 
