@@ -14,6 +14,7 @@ from bench.bms3_interface.bms3_command import BMS3Command, INVALID_VALUE
 from bench.utils.utils import State, ConnectionState
 from bench.utils.menus import Menu, menu_frame_design
 
+# Test parameters
 VOLTAGE_MEASUREMENT_TOLERANCE = 5                       # %
 V_OUT_TOLERANCE = 100                                   # mV
 V_OUT_TEST_CURRENT_TOLERANCE = 5                        # %
@@ -26,10 +27,12 @@ CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 0.01    # mA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
 
+# Logging
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
 LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
 
+# Multimeter
 ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
 
