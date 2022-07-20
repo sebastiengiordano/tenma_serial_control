@@ -15,7 +15,7 @@ from bench.utils.utils import State, ConnectionState
 from bench.utils.menus import Menu, menu_frame_design
 
 VOLTAGE_MEASUREMENT_TOLERANCE = 5               # %
-PREAMP_VOLTAGE_TOLERANCE = 100                  # mV
+V_OUT_TOLERANCE = 100                           # mV
 NO_LOAD_CURRENT_HIGH_THRESHOLD = 0.01           # mA
 NO_LOAD_CURRENT_LOW_THRESHOLD = 0.001           # mA
 LOW_LOAD_CURRENT_HIGH_THRESHOLD = 28            # mA
@@ -141,7 +141,7 @@ class Bms3Sequencer():
         self._desactivate_relay(self._relay_2V5)
         self._desactivate_relay(self._relay_gnd)
 
-    # Connect/disconnected preamplifier
+    # Connect/disconnected Vout
     def connect_low_load(self):
         self._activate_relay(self._relay_low_load)
         self._desactivate_relay(self._relay_high_load)
@@ -164,7 +164,7 @@ class Bms3Sequencer():
         self._desactivate_relay(self._relay_current_measurement_out)
 
     def activate_bms3_battery_measurement(self):
-        self.desactivate_preamplifier_measurement()
+        self.desactivate_v_out_measurement()
         self._activate_relay(self._relay_bms3_battery_measurement_minus)
         self._activate_relay(self._relay_bms3_battery_measurement_plus)
 
@@ -172,14 +172,14 @@ class Bms3Sequencer():
         self._desactivate_relay(self._relay_bms3_battery_measurement_minus)
         self._desactivate_relay(self._relay_bms3_battery_measurement_plus)
 
-    def activate_preamplifier_measurement(self):
+    def activate_v_out_measurement(self):
         self.desactivate_bms3_battery_measurement()
-        self._activate_relay(self._relay_preamplifier_measurement_minus)
-        self._activate_relay(self._relay_preamplifier_measurement_plus)
+        self._activate_relay(self._relay_v_out_measurement_minus)
+        self._activate_relay(self._relay_v_out_measurement_plus)
 
-    def desactivate_preamplifier_measurement(self):
-        self._desactivate_relay(self._relay_preamplifier_measurement_minus)
-        self._desactivate_relay(self._relay_preamplifier_measurement_plus)
+    def desactivate_v_out_measurement(self):
+        self._desactivate_relay(self._relay_v_out_measurement_minus)
+        self._desactivate_relay(self._relay_v_out_measurement_plus)
 
     # Connect/disconnected USB (Vcc/ Ground)
     def connect_usb_power(self):
@@ -220,8 +220,8 @@ class Bms3Sequencer():
             # Test: Battery voltage measurement
             self._battery_voltage_measurement_test()
 
-            # Test: Preamplifier test
-            self._preamplifier_test()
+            # Test: Vout test
+            self._v_out_test()
 
             # Test: Current consomption in sleep mode
             self._current_consomption_in_sleep_mode_test()
@@ -313,20 +313,20 @@ class Bms3Sequencer():
         else:
             return False
 
-        #####################
-        # Preamplifier test #
-        #####################
-    def _preamplifier_test(self):
+        #############
+        # Vout test #
+        #############
+    def _v_out_test(self):
         # Init test
         test_report_status = []
         self.activate_current_measurement()
-        self.activate_preamplifier_measurement()
+        self.activate_v_out_measurement()
 
         # Connected low load and check BMS3 behavior
         self.connect_low_load()
         sleep(.5)
         test_report_status.append(
-            self._preamplifier_test_check(
+            self._v_out_test_check(
                 9000,
                 LOW_LOAD_CURRENT_LOW_THRESHOLD,
                 LOW_LOAD_CURRENT_HIGH_THRESHOLD))
@@ -336,12 +336,12 @@ class Bms3Sequencer():
         self.activate_bms3_battery_measurement()
         sleep(.5)
             # Get battery voltage in order to check that its
-            # the same voltage at preamplifier output
+            # the same voltage at Vout
         voltage_measurement = self._voltmeter.get_measurement()
-        self.activate_preamplifier_measurement()
+        self.activate_v_out_measurement()
         sleep(.5)
         test_report_status.append(
-            self._preamplifier_test_check(
+            self._v_out_test_check(
                 voltage_measurement,
                 NO_LOAD_CURRENT_LOW_THRESHOLD,
                 NO_LOAD_CURRENT_HIGH_THRESHOLD))
@@ -350,7 +350,7 @@ class Bms3Sequencer():
         self.connect_high_load()
         sleep(.5)
         test_report_status.append(
-            self._preamplifier_test_check(
+            self._v_out_test_check(
                 9000,
                 HIGH_LOAD_CURRENT_LOW_THRESHOLD,
                 HIGH_LOAD_CURRENT_HIGH_THRESHOLD))
@@ -358,13 +358,13 @@ class Bms3Sequencer():
         # Evaluate test reports status
         if False not in test_report_status:
             self._test_report[
-                'Preamplifier test'][
+                'Vout test'][
                     'status'] = 'Test OK'
 
-        # End preamplifier test
+        # End Vout test
         self.disconnect_load()
 
-    def _preamplifier_test_check(
+    def _v_out_test_check(
             self,
             voltage_to_check,
             current_low_threshold,
@@ -374,15 +374,15 @@ class Bms3Sequencer():
         current_measurement = self._ampmeter.get_measurement()
 
         # Set voltage threshold
-        voltage_high_threshold = voltage_to_check + PREAMP_VOLTAGE_TOLERANCE
-        voltage_low_threshold = voltage_to_check - PREAMP_VOLTAGE_TOLERANCE
+        voltage_high_threshold = voltage_to_check + V_OUT_TOLERANCE
+        voltage_low_threshold = voltage_to_check - V_OUT_TOLERANCE
 
         # Add measurement values to test report
-        self._test_report['Preamplifier test']['voltage values'].append(
+        self._test_report['Vout test']['voltage values'].append(
             str(voltage_measurement)
             + ' / '
             + str(voltage_to_check))
-        self._test_report['Preamplifier test']['current values'].append(
+        self._test_report['Vout test']['current values'].append(
             str(current_measurement)
             + ' / '
             + str(current_low_threshold)
@@ -598,7 +598,7 @@ class Bms3Sequencer():
             'Battery voltage measurement': (
                 {'status': 'Test NOK',
                  'values': []}),
-            'Preamplifier test': (
+            'Vout test': (
                 {'status': 'Test NOK',
                  'voltage values': [],
                  'current values': []}),
@@ -637,20 +637,20 @@ class Bms3Sequencer():
                 '', '', '',
                 value])
 
-        # Preamplifier test
+        # Vout test
         # Add status to log file
         self._logger.add_lines_to_logging_file([
-            '', 'Preamplifier test',
-            self._test_report['Preamplifier test']['status']])
+            '', 'Vout test',
+            self._test_report['Vout test']['status']])
         # Get measurement values
-        voltage_values = self._test_report['Preamplifier test'][
+        voltage_values = self._test_report['Vout test'][
             'voltage values']
-        current_values = self._test_report['Preamplifier test'][
+        current_values = self._test_report['Vout test'][
             'current values']
         # Add voltage measurement values to log file
         self._logger.add_lines_to_logging_file([
             '', '', '',
-            'BMS3 voltage measurement / preamplifier voltage expected'])
+            'BMS3 voltage measurement / Vout expected'])
         for voltage_value in voltage_values:
             self._logger.add_lines_to_logging_file([
                 '', '', '',
@@ -707,7 +707,7 @@ class Bms3Sequencer():
                 self._test_report[
                     'Battery voltage measurement']['values'] == 'Test OK'
                 and
-                self._test_report['Preamplifier test']['values'] == 'Test OK'
+                self._test_report['Vout test']['values'] == 'Test OK'
                 and
                 self._test_report[
                     'Current consomption in sleep mode'][
@@ -768,10 +768,10 @@ class Bms3Sequencer():
         self._relay_bms3_battery_measurement_plus = {
             'board': "D", 'relay_number': 6,
             'state': State.Disable}
-        self._relay_preamplifier_measurement_minus = {
+        self._relay_v_out_measurement_minus = {
             'board': "D", 'relay_number': 7,
             'state': State.Disable}
-        self._relay_preamplifier_measurement_plus = {
+        self._relay_v_out_measurement_plus = {
             'board': "D", 'relay_number': 8,
             'state': State.Disable}
         self._relay_swclk = {
@@ -804,8 +804,8 @@ class Bms3Sequencer():
             self._relay_debug_tx,
             self._relay_bms3_battery_measurement_minus,
             self._relay_bms3_battery_measurement_plus,
-            self._relay_preamplifier_measurement_minus,
-            self._relay_preamplifier_measurement_plus,
+            self._relay_v_out_measurement_minus,
+            self._relay_v_out_measurement_plus,
             self._relay_swclk,
             self._relay_nrst,
             self._relay_swdio,
