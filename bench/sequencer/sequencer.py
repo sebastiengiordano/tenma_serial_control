@@ -4,6 +4,7 @@ from time import sleep
 from sys import exit
 from os import system
 from os.path import join as os_path_join, normpath
+from enum import Enum, auto
 
 from bench.control_relay.control_relay import ControlRelay
 from bench.tenma.tenma_dc_power import Tenma_72_2535_manage
@@ -37,6 +38,14 @@ LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
 ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
 
+
+# Enum
+class PushInState(Enum):
+    NotDefined = auto()
+    Automatic = auto()
+    Manual = auto()
+
+
 ILLEGAL_NTFS_CHARS = "[<>:/\\|?*\"]|[\0-\31]"
 
 
@@ -63,6 +72,8 @@ class Bms3Sequencer():
         self._test_count = 0
         self._test_voltage = ''
         self._lot_number = ''
+        self._push_in_state = PushInState.NotDefined
+        self._reprog_in_progress = False
         # Run tests
         self.run()
 
@@ -99,10 +110,44 @@ class Bms3Sequencer():
 
     # BMS3 input management
     def press_push_in_button(self):
-        self._activate_relay(self._relay_push_in)
+        if self._push_in_state is PushInState.NotDefined:
+            self._set_push_in_management()
+            self.press_push_in_button()
+        elif self._push_in_state is PushInState.Automatic:
+            self._activate_relay(self._relay_push_in)
+        else:
+            if self._reprog_in_progress:
+                message = (
+                    '\n\t'
+                    'Veuillez maintenir appuyé le bouton PUSH_IN '
+                    'durant la phase de reprogrammation.'
+                    '\n\t'
+                    '          Appuyer sur la touche ENTER '
+                    'pour lancer la reprogrammation.')
+            else:
+                message = (
+                    '\n\t'
+                    '     Veuillez appuyer sur le bouton PUSH_IN.'
+                    '\n\t'
+                    'Appuyer sur la touche ENTER pour continuer le test.')
+            input(message)
 
     def release_push_in_button(self):
-        self._desactivate_relay(self._relay_push_in)
+        if self._push_in_state is PushInState.Automatic:
+            self._desactivate_relay(self._relay_push_in)
+        elif self._push_in_state is PushInState.Manual:
+            if self._reprog_in_progress:
+                message = (
+                    '\n\t'
+                    'Veuillez relacher le bouton PUSH_IN.'
+                    '\n\t'
+                    'Appuyer ensuite sur la touche ENTER.')
+                input(message)
+        else:
+            # For robutness purpose,
+            # since push in management shall already been done
+            self._set_push_in_management()
+            self.release_push_in_button()
 
     def bms3_wake_up(self):
         self.connect_tenma_alim()
@@ -133,6 +178,7 @@ class Bms3Sequencer():
         self._desactivate_relay(self._relay_debug_rx)
 
     def connect_reprog(self):
+        self._reprog_in_progress = True
         self._activate_relay(self._relay_swclk)
         self._activate_relay(self._relay_nrst)
         self._activate_relay(self._relay_swdio)
@@ -140,6 +186,7 @@ class Bms3Sequencer():
         self._activate_relay(self._relay_gnd)
 
     def disconnect_reprog(self):
+        self._reprog_in_progress = False
         self._desactivate_relay(self._relay_swclk)
         self._desactivate_relay(self._relay_nrst)
         self._desactivate_relay(self._relay_swdio)
@@ -959,13 +1006,19 @@ class Bms3Sequencer():
         self._isolated_alim_state = ConnectionState.Disconnected
         self._tenma_dc_power_state = State.Disable
 
+    def _is_current_measurement_connected(self):
+        return (
+            self._relay_current_measurement_in['state'] == State.Enable
+            and
+            self._relay_current_measurement_out['state'] == State.Enable)
+
     # BMS3 interface
     def _load_firmware(self, firmware_label):
         self.connect_tenma_alim()
         self._tenma_dc_set_voltage(3333)
         self._tenma_dc_power_on()
-        self.press_push_in_button()
         self.connect_reprog()
+        self.press_push_in_button()
         process_return, std_out = self._bms3_interface.write(firmware_label)
         self.disconnect_reprog()
         self.release_push_in_button()
@@ -1041,6 +1094,25 @@ class Bms3Sequencer():
                 'Veuillez débrancher/rebrancher le STLink.']
             )
         input('\n\tAppuyer sur la touche \'Entrée\' pour continuer...')
+
+    def _set_push_in_management(self):
+        # Managed the case where current measurement has been requested
+        # before push_in_state has been set.
+        current_measurement_connected = self._is_current_measurement_connected()
+        if not current_measurement_connected:
+            self.activate_current_measurement()
+        # Check if push_in in automatic mode worked
+        self._activate_relay(self._relay_push_in)
+        sleep(.5)
+        current_measurement = self._ampmeter.get_measurement()
+        self._desactivate_relay(self._relay_push_in)
+        if current_measurement > CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD:
+            self._push_in_state = PushInState.Automatic
+        else:
+            self._push_in_state = PushInState.Manual
+        # Desactivate current measurement if it wasn't already connected
+        if not current_measurement_connected:
+            self.desactivate_current_measurement()
 
     # HMI
     def _ask_for_board_number(self):
