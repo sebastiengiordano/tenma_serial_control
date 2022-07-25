@@ -26,6 +26,7 @@ CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 0.001    # mA
 CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 0.01    # mA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
+LED_COLOR_STEP_NUMBER = 4                               # Blue / Green / Red / White
 
 # Logging
 LOGGING_FOLDER = "../../logging"
@@ -525,7 +526,55 @@ class Bms3Sequencer():
         # LED colors test #
         ###################
     def _led_colors_test(self):
-        sentence = '\tTest de la couleur des LED.'
+        # Start led colors test sequence
+        self._led_colors_test_sequence()
+        # Evaluate test reports status
+        self._led_colors_evaluate_test_reports_status()
+
+    def _led_colors_test_sequence(self):
+        # User request to start led test
+        sentence = '\tSequence de test de la couleur des LED.'
+        frame = '*' * (16 + len(sentence))
+        frame = '\n' + frame + '\n'
+        input(
+            frame
+            + sentence
+            + frame
+            + "(Appuyer sur ENTER pour lancer le test)".center(len(frame) - 2))
+        # Toogle all leds
+        for _ in range(LED_COLOR_STEP_NUMBER):
+            self._activate_led()
+            sleep(.8)
+            self._desactivate_led()
+            sleep(.2)
+        # Ask for LED check
+        answer = input("\n\t"
+                       + "Avez-vous vu la séquence Bleu / Vert / Rouge / Blanc ?"
+                       + "\n\t\t"
+                       + "(Oui / Non   -   Yes / No)"
+                       + "\n")
+        # Evaluate answer
+        if answer in 'oOyY':
+            # Test OK
+            self._test_report['LED colors']['status_red'] = 'Test OK'
+            self._test_report['LED colors']['status_green'] = 'Test OK'
+            self._test_report['LED colors']['status_blue'] = 'Test OK'
+        elif answer in 'nN':
+            # Test NOK, start led colors test step by step,
+            # in order to evaluate which led(s) is(are) in trouble.
+            self._led_colors_test_step_by_step()
+        else:
+            # Wrong answer, shall be in 'oOyYnN'
+            print('\t\t*********************************************')
+            print('\t\t*            Mauvaise réponse !             *')
+            print('\t\t* Vous devez utiliser les touches o, y ou n *')
+            print('\t\t*          Le test va recommencer.          *')
+            print('\t\t*********************************************')
+            print('')
+            self._led_colors_test_sequence()
+
+    def _led_colors_test_step_by_step(self):
+        sentence = '\tTest de la couleur des LED (une à une).'
         frame = '*' * (16 + len(sentence))
         frame = '\n' + frame + '\n'
         print(
@@ -536,61 +585,55 @@ class Bms3Sequencer():
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED bleue est allumée '
-            'et sa couleur conforme ? (y/n)\t',
+            'et sa couleur conforme ?'
+            '\n\t\t'
+            '(Oui / Non   -   Yes / No)"\t',
             'status_blue')
         # Test the green LED
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED verte est allumée '
-            'et sa couleur conforme ? (y/n)\t',
+            'et sa couleur conforme ?'
+            '\n\t\t'
+            '(Oui / Non   -   Yes / No)"\t',
             'status_green')
         # Test the red LED
         self._led_colors_check(
             '\n\t'
             'Est-ce que la LED rouge est allumée '
-            'et sa couleur conforme ? (y/n)\t',
+            'et sa couleur conforme ?'
+            '\n\t\t'
+            '(Oui / Non   -   Yes / No)"\t',
             'status_red')
-        # Evaluate test reports status
-        if 'Test NOK' not in (
-                self._test_report['LED colors']['status_red'],
-                self._test_report['LED colors']['status_green'],
-                self._test_report['LED colors']['status_blue']):
-            self._test_report[
-                'LED colors'][
-                    'status'] = 'Test OK'
 
     def _led_colors_check(
             self,
             question,
             test_in_progress):
-        # Wait for user
-        sleep(0.5)
         # Activate the LED
         self._activate_led()
         # Ask for LED check
-        answer = input(question)
+        answer = input("\n\t" + question)
         # Desactivate the LED
         self._desactivate_led()
         # Evaluate answer
-        if answer in 'yY':
+        if answer in 'oOyY':
             # Test OK
             self._test_report['LED colors'][test_in_progress] = 'Test OK'
         elif answer not in 'nN':
-            # Wrong answer, shall be in 'yYnN'
-            print('\t\t*********************************')
-            print('\t\t* Wrong answer, shall be y or n *')
-            print('\t\t*       Test will restart       *')
-            print('\t\t*********************************')
-            # Toogle led until the good one
-            self._desactivate_led()
-            sleep(.1)
-            self._activate_led()
-            sleep(2)
-            self._desactivate_led()
-            sleep(.1)
-            self._activate_led()
-            sleep(2)
-            self._desactivate_led()
+            # Wrong answer, shall be in 'oOyYnN'
+            print('\t\t*********************************************')
+            print('\t\t*            Mauvaise réponse !             *')
+            print('\t\t* Vous devez utiliser les touches o, y ou n *')
+            print('\t\t*          Le test va recommencer.          *')
+            print('\t\t*********************************************')
+            # Toogle led until the previous one
+            for _ in range(LED_COLOR_STEP_NUMBER - 1):
+                self._activate_led()
+                sleep(.2)
+                self._desactivate_led()
+                sleep(.2)
+            # Restart the test from the current step
             self._led_colors_check(
                 question,
                 test_in_progress)
@@ -600,6 +643,16 @@ class Bms3Sequencer():
 
     def _desactivate_led(self):
         self.desactivate_jmp_18_v()
+
+    def _led_colors_evaluate_test_reports_status(self):
+        # Evaluate test reports status
+        if 'Test NOK' not in (
+                self._test_report['LED colors']['status_red'],
+                self._test_report['LED colors']['status_green'],
+                self._test_report['LED colors']['status_blue']):
+            self._test_report[
+                'LED colors'][
+                    'status'] = 'Test OK'
 
     # Logging
     def _set_logger(self) -> None:
