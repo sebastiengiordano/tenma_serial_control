@@ -124,13 +124,12 @@ class Bms3Sequencer():
                     '\n\t'
                     '          Appuyer sur la touche ENTER '
                     'pour lancer la reprogrammation.')
+                input(message)
             else:
-                message = (
+                print(
                     '\n\t'
-                    '     Veuillez appuyer sur le bouton PUSH_IN.'
-                    '\n\t'
-                    'Appuyer sur la touche ENTER pour continuer le test.')
-            input(message)
+                    'Veuillez appuyer sur le bouton PUSH_IN.')
+                self._wait_for_push_in()
 
     def release_push_in_button(self):
         if self._push_in_state is PushInState.Automatic:
@@ -1101,6 +1100,7 @@ class Bms3Sequencer():
         current_measurement_connected = self._is_current_measurement_connected()
         if not current_measurement_connected:
             self.activate_current_measurement()
+
         # Check if push_in in automatic mode worked
         self._activate_relay(self._relay_push_in)
         sleep(.5)
@@ -1110,6 +1110,25 @@ class Bms3Sequencer():
             self._push_in_state = PushInState.Automatic
         else:
             self._push_in_state = PushInState.Manual
+
+        # Desactivate current measurement if it wasn't already connected
+        if not current_measurement_connected:
+            self.desactivate_current_measurement()
+
+    def _wait_for_push_in(self):
+        # Managed the case where current measurement has been requested
+        # before push_in_state has been set.
+        current_measurement_connected = self._is_current_measurement_connected()
+        if not current_measurement_connected:
+            self.activate_current_measurement()
+
+        # Wait for push_in
+        while (
+                self._ampmeter.get_measurement()
+                <
+                CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD):
+            sleep(.1)
+
         # Desactivate current measurement if it wasn't already connected
         if not current_measurement_connected:
             self.desactivate_current_measurement()
