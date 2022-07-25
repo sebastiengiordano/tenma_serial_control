@@ -26,7 +26,7 @@ CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 0.001    # mA
 CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 0.01    # mA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
-LED_COLOR_STEP_NUMBER = 4                               # Blue / Green / Red / White
+LED_COLOR_STEP_NUMBER = 4                               # RGB and White
 
 # Logging
 LOGGING_FOLDER = "../../logging"
@@ -223,7 +223,8 @@ class Bms3Sequencer():
 
             # BMS3 load firmware if requested
             if self._load_firmware_enable:
-                process_return, std_out = self._load_firmware(self._firmware_label)
+                process_return, std_out = \
+                    self._load_firmware(self._firmware_label)
                 if not isinstance(process_return, CompletedProcess):
                     self._manage_reprog_trouble(process_return, std_out)
                     raise Exception(std_out)
@@ -337,10 +338,11 @@ class Bms3Sequencer():
         self.activate_v_out_measurement()
         # Set voltage to check and current threshold
         (voltage_to_check,
-        low_load_current_low_threshold,
-        low_load_current_high_threshold,
-        high_load_current_low_threshold,
-        high_load_current_high_threshold) = self._v_out_test_set_value_to_check()
+         low_load_current_low_threshold,
+         low_load_current_high_threshold,
+         high_load_current_low_threshold,
+         high_load_current_high_threshold) = \
+            self._v_out_test_set_value_to_check()
 
         # Test low load
         self.connect_low_load()
@@ -382,16 +384,16 @@ class Bms3Sequencer():
             # Set voltage_to_check and current threshold for Vout = 9 V
             voltage_to_check = 9000
             low_load_current = (voltage_to_check
-                       / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V)
+                                / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V)
             high_load_current = (voltage_to_check
-                       / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+                                 / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
         else:
             # Set voltage_to_check and current threshold for Vout = 18 V
             voltage_to_check = 18000
             low_load_current = (voltage_to_check
-                       / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V)
+                                / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V)
             high_load_current = (voltage_to_check
-                       / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+                                 / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
         return (
             voltage_to_check,
             int(low_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100),
@@ -664,7 +666,7 @@ class Bms3Sequencer():
         self._test_report = self._init_test_report()
 
     def _set_logging_name(self) -> str:
-        logging_name= ILLEGAL_NTFS_CHARS
+        logging_name = ILLEGAL_NTFS_CHARS
         while(True in [caracter in ILLEGAL_NTFS_CHARS for caracter in logging_name]):
             logging_name = input(
                 '\n\t'
@@ -700,13 +702,15 @@ class Bms3Sequencer():
         return logging_name + '_' + self._test_voltage + 'V'
 
     def _set_lot_number(self, logging_name: str) -> str:
-        while(self._lot_number == '' or (True in [caracter in ILLEGAL_NTFS_CHARS for caracter in self._lot_number])):
+        while(
+                self._lot_number == ''
+                or
+                (True in [caracter in ILLEGAL_NTFS_CHARS for caracter in self._lot_number])):
             self._lot_number = input(
                 '\n\t'
                 'Entrer le numéro de lot :'
                 '\n\t\t'
             )
-         
 
         return logging_name + '_' + self._lot_number
 
@@ -805,7 +809,7 @@ class Bms3Sequencer():
 
         # LED colors
         self._logger.add_lines_to_logging_file([
-            '', 'LED colors', 
+            '', 'LED colors',
             self._test_report['LED colors']['status']])
         self._logger.add_lines_to_logging_file([
             '', '', 'RED',
@@ -1101,7 +1105,7 @@ class Bms3Sequencer():
             if len(sentence) > max_size:
                 max_size = len(sentence)
         for index, sentence in enumerate(sentences):
-                sentences[index] = '\t\t' + sentence.center(max_size + 8)
+            sentences[index] = '\t\t' + sentence.center(max_size + 8)
         frame = '*' * (16 + max_size)
         frame = '\t\t' + frame
         print('\n' + frame)
