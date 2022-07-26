@@ -5,11 +5,6 @@ from .tenmaDcLib import Tenma72_2535
 from ..utils.utils import enumerate_serial, autoselect_serial
 
 
-MAX_VOLTAGE = 3500
-MAX_CURRENT = 60
-WAIT_AFTER_SETTING = 1.5
-
-
 class Tenma_72_2535_manage:
 
     def __init__(self, vendor_product_id='VID:PID=0416:5011', debug=False):
@@ -46,27 +41,21 @@ class Tenma_72_2535_manage:
     def set_voltage(self, value: int = 0, channel: int = 1) -> int:
         '''Set the voltage value (in mV)'''
 
-        if value > MAX_VOLTAGE:
-            value = MAX_VOLTAGE
         #  Value shall be a mulitple of 10mV
         value = value // 10 * 10
         self.tenma72_2535.setVoltage(channel, value)
-        sleep(WAIT_AFTER_SETTING)
         return value
 
     def set_current(self, value: int = 0, channel: int = 1) -> int:
         '''Set the current value (in mA)'''
 
-        if value > MAX_CURRENT:
-            value = MAX_CURRENT
         self.tenma72_2535.setCurrent(channel, value)
-        sleep(WAIT_AFTER_SETTING)
         return value
 
-    def get_current(self, channel: int = 1) -> float:
-        '''Get the current value (in mA)'''
+    def get_current(self, channel: int = 1) -> int:
+        '''Get the actual output current (in mA)'''
 
-        return self.tenma72_2535.readCurrent(channel)
+        return int(self.tenma72_2535.getCurrent(channel) * 1000)
 
     def disconnect(self):
         if self._comm_port_status == 'Open':

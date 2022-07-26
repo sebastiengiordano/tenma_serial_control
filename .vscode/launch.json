@@ -40,6 +40,15 @@
             "args": [
                 "-g"
             ],
+        },
+        {
+            "name": "Python: Module - tenma DC power",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.tenma",
+            "args": [
+                "-g"
+            ],
             "stopOnEntry": false
         }
     ]

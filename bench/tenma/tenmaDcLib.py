@@ -184,6 +184,7 @@ class Tenma72Base(object):
         }
 
     def readCurrent(self, channel):
+        "Returns the output current setting."
         if channel > self.NCHANNELS:
             raise TenmaException("Trying to read CH{channel} with only {nch} channels".format(
                 channel=channel,
@@ -191,6 +192,18 @@ class Tenma72Base(object):
             ))
 
         commandCheck = "ISET{channel}?".format(channel=1)
+        self.__sendCommand(commandCheck)
+        return float(self.__readOutput())
+
+    def getCurrent(self, channel):
+        "Returns the actual output current."
+        if channel > self.NCHANNELS:
+            raise TenmaException("Trying to read CH{channel} with only {nch} channels".format(
+                channel=channel,
+                nch=self.NCHANNELS
+            ))
+
+        commandCheck = "IOUT{channel}?".format(channel=1)
         self.__sendCommand(commandCheck)
         return float(self.__readOutput())
 

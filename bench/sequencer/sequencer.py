@@ -38,12 +38,23 @@ LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
 ID_PRODUCT = 0xE008
 ID_VENDOR = 0x1A86
 
+# Tenma DC power
+MAX_BMS3_VOLTAGE = 3500     # mV
+MAX_BMS3_CURRENT = 60       # mA
+MAX_USB_VOLTAGE = 5000      # mV
+MAX_USB_CURRENT = 300       # mA
+
 
 # Enum
 class PushInState(Enum):
     NotDefined = auto()
     Automatic = auto()
     Manual = auto()
+
+
+class Item(Enum):
+    BMS3 = auto()
+    USB = auto()
 
 
 ILLEGAL_NTFS_CHARS = "[<>:/\\|?*\"]|[\0-\31]"
@@ -152,7 +163,7 @@ class Bms3Sequencer():
     def bms3_wake_up(self):
         self.connect_tenma_alim()
         self._tenma_dc_power_on()
-        self._tenma_dc_set_voltage(3500)
+        self._tenma_dc_set_voltage(3500, Item.BMS3)
         self.press_push_in_button()
         sleep(0.5)
         self.release_push_in_button()
@@ -340,7 +351,7 @@ class Bms3Sequencer():
 
         # BMS3 battery voltage measurement tests
         for voltage in voltage_to_check:
-            self._tenma_dc_set_voltage(voltage)
+            self._tenma_dc_set_voltage(voltage, Item.BMS3)
             test_report_status.append(
                 self._battery_voltage_measurement_check())
 
@@ -553,11 +564,14 @@ class Bms3Sequencer():
     def _battery_charge_test(self):
         # Init test
         self.connect_isolated_alim()
+        self._tenma_dc_power.power('OFF')
         self.connect_usb_power()
+        self._tenma_dc_set_voltage(5000, Item.USB)
+        self._tenma_dc_power.power('ON')
         sleep(0.5)
 
-        # Get measurement
-        current_measurement = self._ampmeter.get_measurement()
+        # Get current measurement from Tenma_72_2535
+        current_measurement = self._tenma_dc_power.get_current()
         self._test_report[
                 'Battery charge'][
                     'value'] = current_measurement
@@ -1015,7 +1029,7 @@ class Bms3Sequencer():
     # BMS3 interface
     def _load_firmware(self, firmware_label):
         self.connect_tenma_alim()
-        self._tenma_dc_set_voltage(3333)
+        self._tenma_dc_set_voltage(3333, Item.BMS3)
         self._tenma_dc_power_on()
         self.connect_reprog()
         self.press_push_in_button()
@@ -1253,5 +1267,13 @@ class Bms3Sequencer():
             self._tenma_dc_power.set_voltage(0)
             self._tenma_dc_power.power('OFF')
 
-    def _tenma_dc_set_voltage(self, value) -> int:
+    def _tenma_dc_set_voltage(self, value: int, item: Item) -> int:
+        if item == Item.BMS3:
+            max_voltage = MAX_BMS3_VOLTAGE
+            max_current = MAX_BMS3_CURRENT
+        else:
+            max_voltage = MAX_USB_VOLTAGE
+            max_current = MAX_USB_CURRENT
+        value = min(max_voltage, value)
+        self._tenma_dc_power.set_current(max_current)
         return self._tenma_dc_power.set_voltage(value)
