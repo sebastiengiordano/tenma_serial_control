@@ -1251,7 +1251,9 @@ class Bms3Sequencer():
             if (
                     device.idProduct == ID_PRODUCT
                     and
-                    device.idVendor == ID_VENDOR):
+                    device.idVendor == ID_VENDOR
+                    and
+                    device.bcdDevice not in bcdDevices):
                 bcdDevices.append(device.bcdDevice)
         return bcdDevices
 

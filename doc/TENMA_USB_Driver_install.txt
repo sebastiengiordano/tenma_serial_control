@@ -1,0 +1,19 @@
+Installation des drivers USB pour les multimètre TENMA 72_7730A
+
+Suivez les étapes suivantes:
+	1/ Télécharger la dernière version de libusb sous Windows
+		https://sourceforge.net/projects/libusb/files/libusb-1.0/libusb-1.0.21/libusb-1.0.21.7z/download
+	2/ Unzip dans un dossier temporaire ou récupérer directement depuis votre utilitaire de décompression (7zip, WinZip, WinRAR, ...)
+	3/ Si vous êtes sous Windows 64-bit:
+		copier MS64\dll\libusb-1.0.dll 
+		dans C:\windows\system32
+	   Si vous êtes sous Windows 32-bit,
+		copier MS32\dll\libusb-1.0.dll
+		dans C:\windows\SysWOW64
+
+	4/ Dans le dossier TestBench\Install\72-7730, lancer l'application:
+		72-7730_V3.00.exe
+	   Dans le dossier où l'utilitaire a été installé
+		(C:\Program Files (x86)\DMM\72-7730, par défaut)
+	   lancer :
+		TENMA72_7730.exe

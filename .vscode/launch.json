@@ -47,7 +47,17 @@
             "request": "launch",
             "module": "bench.tenma",
             "args": [
-                "-g"
+                "-dc_power"
+            ],
+            "stopOnEntry": false
+        },
+        {
+            "name": "Python: Module - tenma DC power",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.tenma",
+            "args": [
+                "-multimeter"
             ],
             "stopOnEntry": false
         }

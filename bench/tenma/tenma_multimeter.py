@@ -48,7 +48,16 @@ class Tenma_72_7730A_manage(threading.Thread):
         self._mode = None
         self._thread_run = True
 
-        self._connect(bcdDevice)
+        try:
+            self._connect(bcdDevice)
+        except NotImplementedError:
+            print(
+                '\n\t'
+                '************************************************************'
+                '\n\t\t'
+                'Veuillez débrancher puis rebrancher les multimètres.'
+                '\n\t'
+                '************************************************************')
 
     def _connect(self, bcdDevice):
         # Find our device
