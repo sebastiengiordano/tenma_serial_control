@@ -65,7 +65,15 @@ class Bms3Sequencer():
     ########################
     # Class Initialization #
     ########################
-    def __init__(self):
+    def __init__(self, test_mode=False):
+        # Set variables
+        self._test_mode = test_mode
+        self._test_in_progress = True
+        self._test_count = 0
+        self._test_voltage = ''
+        self._lot_number = ''
+        self._push_in_state = PushInState.NotDefined
+        self._reprog_in_progress = False
         # Set bench control device
         self._control_relay = ControlRelay()
         self._tenma_dc_power = Tenma_72_2535_manage()
@@ -78,13 +86,6 @@ class Bms3Sequencer():
         # Set BMS3 interface
         self._bms3_interface = BMS3Command()
         self._set_firmware_label()
-        # Set other variables
-        self._test_in_progress = True
-        self._test_count = 0
-        self._test_voltage = ''
-        self._lot_number = ''
-        self._push_in_state = PushInState.NotDefined
-        self._reprog_in_progress = False
         # Run tests
         self.run()
 
@@ -92,6 +93,9 @@ class Bms3Sequencer():
     # Public methods #
     ##################
     def run(self):
+        if self._test_mode:
+            pass
+        else:
         while self._test_in_progress:
             self._test_sequence()
         exit()
@@ -100,6 +104,7 @@ class Bms3Sequencer():
     def connect_tenma_alim(self):
         if self._tenma_alim_state == ConnectionState.Disconnected:
             self._tenma_alim_state == ConnectionState.Connected
+            self._tenma_dc_power.power('OFF')
             self.disconnect_isolated_alim()
             self._activate_relay(self._relay_tenma_alim)
 
@@ -162,8 +167,8 @@ class Bms3Sequencer():
 
     def bms3_wake_up(self):
         self.connect_tenma_alim()
-        self._tenma_dc_power_on()
         self._tenma_dc_set_voltage(3500, Item.BMS3)
+        self._tenma_dc_power_on()
         self.press_push_in_button()
         sleep(0.5)
         self.release_push_in_button()
@@ -323,6 +328,9 @@ class Bms3Sequencer():
                   'Test terminé.'
                   '\n\n\t'
                   '(Appuyer sur la touche ENTER)')
+            # Exit prog
+            self._tenma_dc_power.power('Off')
+            self.disable_all_relays()
             exit()
 
         finally:
@@ -434,6 +442,8 @@ class Bms3Sequencer():
 
         # End Vout test
         self.disconnect_load()
+        self.desactivate_current_measurement()
+        self.desactivate_v_out_measurement()
         # Wait for BMS3 detection (300 ms in source code)
         sleep(.5)
 
@@ -558,16 +568,19 @@ class Bms3Sequencer():
                 'Current consomption in sleep mode'][
                     'status'] = 'Test OK'
 
+        # End test
+        self.desactivate_current_measurement()
+
         #######################
         # Battery charge test #
         #######################
     def _battery_charge_test(self):
         # Init test
         self.connect_isolated_alim()
-        self._tenma_dc_power.power('OFF')
+        self._tenma_dc_power_off()
         self.connect_usb_power()
         self._tenma_dc_set_voltage(5000, Item.USB)
-        self._tenma_dc_power.power('ON')
+        self._tenma_dc_power_on()
         sleep(0.5)
 
         # Get current measurement from Tenma_72_2535
@@ -584,6 +597,10 @@ class Bms3Sequencer():
             self._test_report[
                 'Battery charge'][
                     'status'] = 'Test OK'
+
+        # End test
+        self._tenma_dc_power_off()
+        self.disconnect_usb_power()
 
         ###################
         # LED colors test #
@@ -1148,6 +1165,8 @@ class Bms3Sequencer():
                   'Test terminé.'
                   '\n\n\t'
                   '(Appuyer sur la touche ENTER)')
+            self._tenma_dc_power_off()
+            self.disable_all_relays()
             exit()
         else:
             if not self._check_bms3_number_format(board_number):

@@ -25,15 +25,20 @@ class BMS3Command:
         self._verbose = verbose
         self._voltage_measurement = INVALID_VALUE
         self._end_measurement = False
+        self._connect_to_debug_tx = False
         self._connect_debug_tx_serial()
         self._set_firmware_folder()
 
     def get_measurement(self):
-        # Waiting for reading last value
-        sleep(.5)
-        voltage_measurement = self._voltage_measurement
-        self._voltage_measurement = INVALID_VALUE
-        return voltage_measurement
+        if self._connect_to_debug_tx:
+            # Waiting for reading last value
+            sleep(0.5)
+            voltage_measurement = self._voltage_measurement
+            self._voltage_measurement = INVALID_VALUE
+            return voltage_measurement
+        else:
+            self._connect_debug_tx_serial()
+            return self.get_measurement()
 
     def write(self, firmware_label: str
               ) -> Union[CalledProcessError, TimeoutExpired, CompletedProcess]:
@@ -81,26 +86,65 @@ class BMS3Command:
         sleep(0.5)
         return ser
 
-    def _connect_debug_tx_serial(self):
-        self._debug_tx_serial = self._connect_to_serial(
-            port='COM8',
-            baudrate=115200,
-            parity=serial.PARITY_NONE,
-            timeout=0.2
-            )
-        if not self._debug_tx_serial.is_open:
-            self._debug_tx_serial.open()
-        measurement_thread = Thread(
-            target=self._read_measurement,
-            daemon=True)
-        measurement_thread.start()
+    def _connect_debug_tx_serial(self, port='COM4'):
+        try :
+            self._debug_tx_serial = self._connect_to_serial(
+                port=port,
+                baudrate=115200,
+                parity=serial.PARITY_NONE,
+                timeout=0.2
+                )
+            if not self._debug_tx_serial.is_open:
+                self._debug_tx_serial.open()
+            measurement_thread = Thread(
+                target=self._read_measurement,
+                daemon=True)
+            measurement_thread.start()
+            self._connect_to_debug_tx = True
+        except serial.SerialException as serial_exception:
+            port = self._seek_for_port_com()
+            self._connect_debug_tx_serial(port)
+
+    def _seek_for_port_com(self) -> str:
+        # Ask user to remove USB cable
+        message = ('Veuillez débrancher le cable USB relié '
+                   'à l\'USB type B de la proto board (au niveau du PC).')
+        validation = 'Puis appuyez sur la touche ENTER.'
+        message = ('\n\t'
+                   + message
+                   + '\n\t'
+                   + validation.center(len(message)))
+        input(message)
+        # Get all ports
+        available_serial_port = serial.tools.list_ports.comports()
+        ports = []
+        for port, desc, hwid in sorted(available_serial_port):
+            ports.append(port)
+        # Ask user to connect USB cable
+        message = 'Veuillez rebrancher le cable USB.'
+        message = ('\n\n\t'
+                   + message
+                   + '\n\t'
+                   + validation)
+        input(message)
+        # Get all ports and the one connected to the BMS3
+        available_serial_port = serial.tools.list_ports.comports()
+        ports_with_new_port = []
+        for port, desc, hwid in sorted(available_serial_port):
+            ports_with_new_port.append(port)
+        for port in ports_with_new_port:
+            if port not in ports:
+                return port
 
     def _read_measurement(self):
         while not self._end_measurement:
-            voltage_measurement = \
-                self._debug_tx_serial.readline().decode(encoding='utf-8')
-            if not voltage_measurement == '':
-                self._voltage_measurement = int(voltage_measurement.strip())
+            try:
+                voltage_measurement = \
+                    self._debug_tx_serial.readline().decode(encoding='utf-8')
+                if not voltage_measurement == '':
+                    self._voltage_measurement = int(voltage_measurement.strip())
+            except UnicodeDecodeError:
+                pass
 
     def _set_firmware_folder(self):
         module_dir = dirname(__file__)
