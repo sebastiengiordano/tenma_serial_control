@@ -16,7 +16,7 @@ from bench.utils.utils import State, ConnectionState
 from bench.utils.menus import Menu, menu_frame_design
 
 # Test parameters
-VOLTAGE_MEASUREMENT_TOLERANCE = 5                       # %
+VOLTAGE_MEASUREMENT_THRESHOLD = 5                   # mV
 V_OUT_TOLERANCE = 100                                   # mV
 V_OUT_TEST_CURRENT_TOLERANCE = 5                        # %
 V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000               # Ohm
@@ -352,14 +352,15 @@ class Bms3Sequencer():
         # Init test
         test_report_status = []
         voltage_to_check = [
-            3500,
+            2800,
             3150,
-            2800]
+            3500]
         self.activate_bms3_battery_measurement()
 
         # BMS3 battery voltage measurement tests
         for voltage in voltage_to_check:
             self._tenma_dc_set_voltage(voltage, Item.BMS3)
+            sleep(0.4)
             test_report_status.append(
                 self._battery_voltage_measurement_check())
 
@@ -375,9 +376,8 @@ class Bms3Sequencer():
         bms3_voltage_measurement = self._get_bms3_voltage_measurement()
 
         # Set voltage threshold
-        threshold = voltage_measurement * VOLTAGE_MEASUREMENT_TOLERANCE / 100
-        measurement_high_threshold = voltage_measurement + threshold
-        measurement_low_threshold = voltage_measurement - threshold
+        measurement_high_threshold = voltage_measurement + VOLTAGE_MEASUREMENT_THRESHOLD
+        measurement_low_threshold = voltage_measurement - VOLTAGE_MEASUREMENT_THRESHOLD
 
         # Add measurement values to test report
         self._test_report['Battery voltage measurement']['values'].append(
