@@ -25,9 +25,9 @@ V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500   # Ohm
 V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000         # Ohm
 CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 3    # µA
 CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 10  # µA
-BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
-BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
-LED_COLOR_STEP_NUMBER = 4                               # RGB and White
+BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270         # mA
+BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230          # mA
+LED_COLOR_STEP_NUMBER = 4                           # RGB and White
 
 # Logging
 LOGGING_FOLDER = "../../logging"
@@ -740,7 +740,7 @@ class Bms3Sequencer():
         logging_name = self._set_logging_name()
         self._logger = Logger(
             logging_name=logging_name,
-            logging_folder=normpath(os_path_join(LOGGING_FOLDER + self._lot_number)),
+            logging_folder=normpath(os_path_join(LOGGING_FOLDER, self._lot_number)),
             columns_width=LOG_COLUMNS_WIDTH)
         self._test_report = self._init_test_report()
 
