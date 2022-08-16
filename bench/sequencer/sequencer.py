@@ -17,14 +17,14 @@ from bench.utils.menus import Menu, menu_frame_design
 
 # Test parameters
 VOLTAGE_MEASUREMENT_THRESHOLD = 5                   # mV
-V_OUT_TOLERANCE = 100                                   # mV
-V_OUT_TEST_CURRENT_TOLERANCE = 5                        # %
-V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000               # Ohm
-V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V = 470         # Ohm
-V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500       # Ohm
-V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000             # Ohm
-CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 0.001    # mA
-CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 0.01    # mA
+V_OUT_TOLERANCE = 100                               # mV
+V_OUT_TEST_CURRENT_TOLERANCE = 5                    # %
+V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000           # Ohm
+V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V = 470     # Ohm
+V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500   # Ohm
+V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000         # Ohm
+CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 3    # µA
+CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 10  # µA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270             # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230              # mA
 LED_COLOR_STEP_NUMBER = 4                               # RGB and White
@@ -451,30 +451,31 @@ class Bms3Sequencer():
         if self._test_voltage == '9':
             # Set voltage_to_check and current threshold for Vout = 9 V
             voltage_to_check = 9000
-            low_load_current = (voltage_to_check
+            low_load_current = (voltage_to_check * 1000
                                 / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V)
-            high_load_current = (voltage_to_check
+            high_load_current = (voltage_to_check * 1000
                                  / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+                                    
         else:
             # Set voltage_to_check and current threshold for Vout = 18 V
             voltage_to_check = 18000
-            low_load_current = (voltage_to_check
+            low_load_current = (voltage_to_check * 1000
                                 / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V)
-            high_load_current = (voltage_to_check
+            high_load_current = (voltage_to_check * 1000
                                  / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
         return (
             voltage_to_check,
-            int(low_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100),
-            int(low_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100),
-            int(high_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100),
-            int(high_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100))
+            int(low_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
+            int(low_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
+            int(high_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
+            int(high_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD)
 
     def _v_out_test_no_load(self, test_report_status: list) -> list:
         # Get battery voltage in order to check that
         # its the same voltage as Vout
         self.activate_bms3_battery_measurement()
         sleep(.5)
-        battery_voltage_measurement = self._voltmeter.get_measurement()
+        battery_voltage_measurement = self._voltmeter.get_measurement() * 1000
         self.activate_v_out_measurement()
         sleep(.5)
         # Set current threshold
