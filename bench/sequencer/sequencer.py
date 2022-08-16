@@ -96,9 +96,9 @@ class Bms3Sequencer():
         if self._test_mode:
             pass
         else:
-        while self._test_in_progress:
-            self._test_sequence()
-        exit()
+            while self._test_in_progress:
+                self._test_sequence()
+            exit()
 
     # DC power
     def connect_tenma_alim(self):
@@ -1057,17 +1057,19 @@ class Bms3Sequencer():
         self._tenma_dc_power_off()
         return process_return, std_out
 
-    def _get_bms3_voltage_measurement(self, count=3) -> int:
-        self.connect_debug_tx()
+    def _get_bms3_voltage_measurement(self, count=3, init=True) -> int:
+        if init:
+            self.connect_debug_tx()
+        sleep(0.1)
         self.connect_debug_rx()
         voltage_measurement = self._bms3_interface.get_measurement()
         if voltage_measurement == INVALID_VALUE and count > 0:
             self.disconnect_debug_rx()
-            sleep(0.5)
             voltage_measurement = \
-                self._get_bms3_voltage_measurement(count=count-1)
-        self.disconnect_debug_rx()
-        self.disconnect_debug_tx()
+                self._get_bms3_voltage_measurement(count=count-1, init=False)
+        if init:
+            self.disconnect_debug_rx()
+            self.disconnect_debug_tx()
         return voltage_measurement
 
     def _set_firmware_label(self):
