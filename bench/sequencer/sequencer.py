@@ -1,6 +1,7 @@
 from subprocess import CompletedProcess, TimeoutExpired
 import usb.core
 from time import sleep
+from datetime import date
 from sys import exit
 from os import system
 from os.path import join as os_path_join, normpath
@@ -743,6 +744,7 @@ class Bms3Sequencer():
             logging_folder=normpath(os_path_join(LOGGING_FOLDER, self._lot_number)),
             columns_width=LOG_COLUMNS_WIDTH)
         self._test_report = self._init_test_report()
+        self._add_date_to_log() 
 
     def _set_logging_name(self) -> str:
         logging_name = ILLEGAL_NTFS_CHARS
@@ -924,6 +926,13 @@ class Bms3Sequencer():
             return 'Test OK'
         else:
             return 'Test NOK'
+
+    def _add_date_to_log(self):
+        self._logger.add_lines_to_logging_file([''])
+        self._logger.add_lines_to_logging_file([
+            '',
+            'Date du test :',
+            date.today().strftime('%Y-%m-%d')])
 
     # HAL
     def _set_hal(self):
