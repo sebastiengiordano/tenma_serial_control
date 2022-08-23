@@ -33,12 +33,21 @@
             "stopOnEntry": false
         },
         {
-            "name": "Python: Module - sequencer",
+            "name": "sequencer - BMS3_voltage_measurement",
             "type": "python",
             "request": "launch",
             "module": "bench.sequencer",
             "args": [
-                "-g"
+                "-BMS3_voltage_measurement"
+            ],
+        },
+        {
+            "name": "sequencer - BMS3 reprog",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.sequencer",
+            "args": [
+                "-BMS3_reprog"
             ],
         },
         {
@@ -56,6 +65,16 @@
             "type": "python",
             "request": "launch",
             "module": "bench.tenma",
+            "args": [
+                "-multimeter"
+            ],
+            "stopOnEntry": false
+        },
+        {
+            "name": "Python: Module - bms3_command",
+            "type": "python",
+            "request": "launch",
+            "module": "bench.bms3_interface",
             "args": [
                 "-multimeter"
             ],

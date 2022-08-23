@@ -13,18 +13,18 @@ from bench.tenma.tenma_multimeter import Tenma_72_7730A_manage
 from bench.logger.logger import Logger
 from bench.bms3_interface.bms3_command import BMS3Command, INVALID_VALUE
 
-from bench.utils.utils import State, ConnectionState
+from bench.utils.utils import State
 from bench.utils.menus import Menu, menu_frame_design
 
 # Test parameters
 VOLTAGE_MEASUREMENT_THRESHOLD = 5                   # mV
 V_OUT_TOLERANCE = 100                               # mV
-V_OUT_TEST_CURRENT_TOLERANCE = 5                    # %
-V_OUT_TEST_RESISTOR_WHEN_NO_LOAD = 100000           # Ohm
-V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V = 470     # Ohm
-V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V = 1500   # Ohm
-V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD = 100000         # Ohm
-CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 3    # µA
+CURRENT_TOLERANCE = 5                               # %
+CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_9_V = 40000   # µA
+CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_18_V = 45000  # µA
+CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_9_V = 300    # µA
+CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_18_V = 600   # µA
+CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 2    # µA
 CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 10  # µA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270         # mA
 BATTERY_CHARGE_CURRENT_LOW_THRESHOLD = 230          # mA
@@ -103,27 +103,16 @@ class Bms3Sequencer():
 
     # DC power
     def connect_tenma_alim(self):
-        if self._tenma_alim_state == ConnectionState.Disconnected:
-            self._tenma_alim_state == ConnectionState.Connected
-            self._tenma_dc_power.power('OFF')
-            self.disconnect_isolated_alim()
-            self._activate_relay(self._relay_tenma_alim)
+        self._activate_relay(self._relay_tenma_alim)
 
     def disconnect_tenma_alim(self):
-        if self._tenma_alim_state == ConnectionState.Connected:
-            self._tenma_alim_state == ConnectionState.Disconnected
-            self._desactivate_relay(self._relay_tenma_alim)
+        self._desactivate_relay(self._relay_tenma_alim)
 
     def connect_isolated_alim(self):
-        if self._isolated_alim_state == ConnectionState.Disconnected:
-            self._isolated_alim_state == ConnectionState.Connected
-            self.disconnect_tenma_alim()
-            self._activate_relay(self._relay_isolated_alim)
+        self._activate_relay(self._relay_isolated_alim)
 
     def disconnect_isolated_alim(self):
-        if self._isolated_alim_state == ConnectionState.Connected:
-            self._isolated_alim_state == ConnectionState.Disconnected
-            self._desactivate_relay(self._relay_isolated_alim)
+        self._desactivate_relay(self._relay_isolated_alim)
 
     # BMS3 input management
     def press_push_in_button(self):
@@ -137,17 +126,27 @@ class Bms3Sequencer():
                 message = (
                     '\n\t'
                     'Veuillez maintenir appuyé le bouton PUSH_IN '
-                    'durant la phase de reprogrammation.'
-                    '\n\t'
-                    '          Appuyer sur la touche ENTER '
-                    'pour lancer la reprogrammation.')
+                    'durant la phase de reprogrammation.')
+                if 'STM32 ST_Link Utility' in self._firmware_label:
+                    message = (
+                        message
+                        + '\n\n\t'
+                        + 'Appuyer sur la touche ENTER '
+                        + 'lorsque la reprogrammation est terminée.')
+                else:
+                    message = (
+                        message
+                        + '\n\t'
+                        + '          Appuyer sur la touche ENTER '
+                        + 'pour lancer la reprogrammation.')
             else:
                 message = (
                     '\n\t'
-                    '     Veuillez appuyer sur le bouton PUSH_IN.'
+                    '  Veuillez appuyer sur le bouton PUSH_IN.'
                     '\n\t'
-                    'Appuyer sur la touche ENTER pour continuer le test.')
+                    'Appuyer sur la touche ENTER pour continuer.')
             input(message)
+            print('...')
 
     def release_push_in_button(self):
         if self._push_in_state is PushInState.Automatic:
@@ -167,6 +166,7 @@ class Bms3Sequencer():
             self.release_push_in_button()
 
     def bms3_wake_up(self):
+        self._display_sentence_inside_frame("BMS3 - réveil.")
         self.connect_tenma_alim()
         self._tenma_dc_set_voltage(3500, Item.BMS3)
         self._tenma_dc_power_on()
@@ -217,13 +217,13 @@ class Bms3Sequencer():
             self._activate_relay(self._relay_low_load_9_V)
         else:
             self._activate_relay(self._relay_low_load_18_V)
-        sleep(.5)
+        sleep(0.5)
 
     def connect_high_load(self):
         self._desactivate_relay(self._relay_low_load_9_V)
         self._desactivate_relay(self._relay_low_load_18_V)
         self._activate_relay(self._relay_high_load)
-        sleep(.5)
+        sleep(0.5)
 
     def disconnect_load(self):
         self._desactivate_relay(self._relay_low_load_9_V)
@@ -238,6 +238,14 @@ class Bms3Sequencer():
     def desactivate_current_measurement(self):
         self._desactivate_relay(self._relay_current_measurement_in)
         self._desactivate_relay(self._relay_current_measurement_out)
+
+    def activate_current_measurement_and_check_reset(self):
+        self.activate_current_measurement()
+        sleep(2)
+        # Check if the BMS3 isn't reset after current measurement activation
+        if self._ampmeter.get_measurement() < CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD:
+            self.press_push_in_button()
+            sleep(0.5)
 
     def activate_bms3_battery_measurement(self):
         self.desactivate_v_out_measurement()
@@ -283,15 +291,17 @@ class Bms3Sequencer():
         try:
             # Ask for board number
             self._ask_for_board_number()
-            board_number = self._test_report['Board number']
 
             # BMS3 load firmware if requested
             if self._load_firmware_enable:
-                process_return, std_out = \
-                    self._load_firmware(self._firmware_label)
-                if not isinstance(process_return, CompletedProcess):
-                    self._manage_reprog_trouble(process_return, std_out)
-                    raise Exception(std_out)
+                if 'STM32 ST_Link Utility' in self._firmware_label:
+                    self._load_firmware_with_st_link_utility()
+                else:
+                    process_return, std_out = \
+                        self._load_firmware(self._firmware_label)
+                    if not isinstance(process_return, CompletedProcess):
+                        self._manage_reprog_trouble(process_return, std_out)
+                        raise Exception(std_out)
 
             # BMS3 wake up
             self.bms3_wake_up()
@@ -315,12 +325,11 @@ class Bms3Sequencer():
             self._add_exception_to_log(err)
 
             # Display error
-            print('\n\t'
-                  'L\'erreur suivante est survenu :'
-                  '\n\t\t'
-                  f'{err}'
-                  '\n\t'
-                  f'Lors du test de la carte {board_number}.')
+            board_number = self._test_report['Board number']
+            self._display_sentences_inside_frame([
+                'L\'erreur suivante est survenu :',
+                f'\t{err}',
+                f'\tLors du test de la carte {board_number}.'])
 
             # Stop logging
             self._logger.stop_logging(
@@ -330,38 +339,39 @@ class Bms3Sequencer():
                   '\n\n\t'
                   '(Appuyer sur la touche ENTER)')
             # Exit prog
-            self._tenma_dc_power.power('Off')
+            self._tenma_dc_power_off()
             self.disable_all_relays()
             exit()
 
         finally:
-            # Display test result
-            print('\n\t'
-                  f'Resultat du test de la carte {board_number} => '
-                  f'{self._test_status()}')
+            board_number = self._test_report['Board number']
+            if board_number != 'Not Defined':
+                # Display test result
+                self._display_sentence_inside_frame(
+                    f'Resultat du test de la carte {board_number} => '
+                    f'{self._test_status()}')
 
-            # Update log file
-            self._update_log()
+                # Update log file
+                self._update_log()
 
-            # Disable all relay
-            self.disable_all_relays()
+                # End test sequence
+                self._tenma_dc_power_off()
+                self.disable_all_relays()
 
         ####################################
         # Battery voltage measurement test #
         ####################################
     def _battery_voltage_measurement_test(self):
         # Init test
+        self._display_sentence_inside_frame('Battery voltage measurement test')
         test_report_status = []
-        voltage_to_check = [
-            2800,
-            3150,
-            3500]
+        voltage_to_check = [2800, 3150, 3500]
         self.activate_bms3_battery_measurement()
 
         # BMS3 battery voltage measurement tests
         for voltage in voltage_to_check:
             self._tenma_dc_set_voltage(voltage, Item.BMS3)
-            sleep(0.4)
+            sleep(1)
             test_report_status.append(
                 self._battery_voltage_measurement_check())
 
@@ -371,10 +381,13 @@ class Bms3Sequencer():
                 'Battery voltage measurement'][
                     'status'] = 'Test OK'
 
+        # End battery voltage measurement test
+        self._battery_voltage_measurement_end_test()
+
     def _battery_voltage_measurement_check(self) -> bool:
         # Get measurements
-        voltage_measurement = self._voltmeter.get_measurement() * 1000
         bms3_voltage_measurement = self._get_bms3_voltage_measurement()
+        voltage_measurement = self._voltmeter.get_measurement()
 
         # Set voltage threshold
         measurement_high_threshold = voltage_measurement + VOLTAGE_MEASUREMENT_THRESHOLD
@@ -395,13 +408,28 @@ class Bms3Sequencer():
         else:
             return False
 
+    def _battery_voltage_measurement_end_test(self):
+        self.desactivate_bms3_battery_measurement()
+
+        # Display test reports status
+        battery_voltage_report = self._test_report[
+                'Battery voltage measurement']
+        print("\tTest Status :\t",
+              f"{battery_voltage_report['status']}")
+        print('\t\tMesure BMS3 / Voltmetre')
+        for value in battery_voltage_report['values']:
+            print('\t\t', value, end='')
+        print()
+
+
         #############
         # Vout test #
         #############
     def _v_out_test(self):
         # Init test
+        self._display_sentence_inside_frame('Vout test')
         test_report_status = []
-        self.activate_current_measurement()
+        self.activate_current_measurement_and_check_reset()
         self.activate_v_out_measurement()
         # Set voltage to check and current threshold
         (voltage_to_check,
@@ -421,7 +449,7 @@ class Bms3Sequencer():
 
         # Disconnect load and wait for BMS3 detection (300 ms in source code)
         self.disconnect_load()
-        sleep(.5)
+        sleep(0.5)
 
         # Test high load
         self.connect_high_load()
@@ -431,69 +459,30 @@ class Bms3Sequencer():
                 high_load_current_low_threshold,
                 high_load_current_high_threshold))
 
-        # Disconnect load and wait for BMS3 detection (300 ms in source code)
-        self.disconnect_load()
-        sleep(.5)
-
-        # Test no load
-        test_report_status = self._v_out_test_no_load(test_report_status)
-
         # Evaluate test reports status
         self._v_out_evaluate_test(test_report_status)
 
         # End Vout test
-        self.disconnect_load()
-        self.desactivate_current_measurement()
-        self.desactivate_v_out_measurement()
-        # Wait for BMS3 detection (300 ms in source code)
-        sleep(.5)
+        self._v_out_end_test()
 
     def _v_out_test_set_value_to_check(self) -> tuple[int]:
         if self._test_voltage == '9':
             # Set voltage_to_check and current threshold for Vout = 9 V
             voltage_to_check = 9000
-            low_load_current = (voltage_to_check * 1000
-                                / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_9_V)
-            high_load_current = (voltage_to_check * 1000
-                                 / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+            low_load_current = CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_9_V
+            high_load_current = CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_9_V
                                     
         else:
             # Set voltage_to_check and current threshold for Vout = 18 V
             voltage_to_check = 18000
-            low_load_current = (voltage_to_check * 1000
-                                / V_OUT_TEST_RESISTOR_WHEN_LOW_LOAD_FOR_18_V)
-            high_load_current = (voltage_to_check * 1000
-                                 / V_OUT_TEST_RESISTOR_WHEN_HIGH_LOAD)
+            low_load_current = CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_18_V
+            high_load_current = CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_18_V
         return (
             voltage_to_check,
-            int(low_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
-            int(low_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
-            int(high_load_current * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
-            int(high_load_current * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD)
-
-    def _v_out_test_no_load(self, test_report_status: list) -> list:
-        # Get battery voltage in order to check that
-        # its the same voltage as Vout
-        self.activate_bms3_battery_measurement()
-        sleep(.5)
-        battery_voltage_measurement = self._voltmeter.get_measurement() * 1000
-        self.activate_v_out_measurement()
-        sleep(.5)
-        # Set current threshold
-        current_low_threshold = int(
-            battery_voltage_measurement
-            / V_OUT_TEST_RESISTOR_WHEN_NO_LOAD
-            * (100 - V_OUT_TEST_CURRENT_TOLERANCE) / 100)
-        current_high_threshold = int(
-            battery_voltage_measurement
-            / V_OUT_TEST_RESISTOR_WHEN_NO_LOAD
-            * (100 + V_OUT_TEST_CURRENT_TOLERANCE) / 100)
-        test_report_status.append(
-            self._v_out_test_check(
-                battery_voltage_measurement,
-                current_low_threshold,
-                current_high_threshold))
-        return test_report_status
+            int(low_load_current * (100 - CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
+            int(low_load_current * (100 + CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
+            int(high_load_current * (100 - CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD,
+            int(high_load_current * (100 + CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD)
 
     def _v_out_test_check(
             self,
@@ -501,6 +490,7 @@ class Bms3Sequencer():
             current_low_threshold: int,
             current_high_threshold: int) -> list:
         # Get measurements
+        sleep(1)
         v_out_measurement = self._voltmeter.get_measurement()
         current_measurement = self._ampmeter.get_measurement()
 
@@ -543,13 +533,30 @@ class Bms3Sequencer():
                 'Vout test'][
                     'status'] = 'Test OK'
 
+    def _v_out_end_test(self):
+        self.disconnect_load()
+        # Since the next test is "Current consomption in sleep mode"
+        # The current measurement isn't desactivated.
+        # self.desactivate_current_measurement()
+        self.desactivate_v_out_measurement()
+
+        # Display test reports status
+        vout_report = self._test_report['Vout test']
+        print(f"\tTest Status :\t{vout_report['status']}")
+        values = zip(vout_report['voltage values'], vout_report['current values'])
+        print('\t\tvoltages\tBMS3 courant / min value / max value attendues')
+        for voltages, currents in values:
+            print(f'\t\t{voltages}\t{currents}')
+        print()
+
         ##########################################
         # Current consomption in sleep mode test #
         ##########################################
     def _current_consomption_in_sleep_mode_test(self):
         # Init test
-        self.activate_current_measurement()
-        sleep(.5)
+        self._display_sentence_inside_frame('Current consomption in sleep mode test')
+        self.activate_current_measurement_and_check_reset()
+
         # Get measurement
         current_measurement = self._ampmeter.get_measurement()
 
@@ -571,19 +578,31 @@ class Bms3Sequencer():
                     'status'] = 'Test OK'
 
         # End test
+        self._current_consomption_in_sleep_mode_end_test()
+
+    def _current_consomption_in_sleep_mode_end_test(self):
         self.desactivate_current_measurement()
+
+        # Display test reports status
+        test_report = self._test_report['Current consomption in sleep mode']
+        print(f"\tTest Status :\t{test_report['status']}")
+        print('\t\tBMS3 consommation de courant / min value / max value attendues')
+        print(f"\t\t{test_report['value']}")
+        print()
 
         #######################
         # Battery charge test #
         #######################
     def _battery_charge_test(self):
         # Init test
+        self._display_sentence_inside_frame('Battery charge test')
         self.connect_isolated_alim()
         self._tenma_dc_power_off()
+        self.disconnect_tenma_alim()
         self.connect_usb_power()
         self._tenma_dc_set_voltage(5000, Item.USB)
         self._tenma_dc_power_on()
-        sleep(0.5)
+        sleep(1.5)
 
         # Get current measurement from Tenma_72_2535
         current_measurement = self._tenma_dc_power.get_current()
@@ -601,13 +620,28 @@ class Bms3Sequencer():
                     'status'] = 'Test OK'
 
         # End test
-        self._tenma_dc_power_off()
+        self._battery_charge_end_test()
+
+    def _battery_charge_end_test(self):
         self.disconnect_usb_power()
+        self._tenma_dc_power_off()
+        self._tenma_dc_set_voltage(3500, Item.BMS3)
+        self.connect_tenma_alim()
+        self._tenma_dc_power_on()
+        self.disconnect_isolated_alim()
+
+        # Display test reports status
+        test_report = self._test_report['Battery charge']
+        print(f"\tTest Status :\t{test_report['status']}")
+        print(f"\t\tBMS3 consommation de courant :\t{test_report['value']} mA")
+        print()
 
         ###################
         # LED colors test #
         ###################
     def _led_colors_test(self):
+        self._display_sentence_inside_frame('LED colors test')
+        self.activate_current_measurement_and_check_reset()
         # Start led colors test sequence
         self._led_colors_test_sequence()
         # Evaluate test reports status
@@ -626,9 +660,9 @@ class Bms3Sequencer():
         # Toogle all leds
         for _ in range(LED_COLOR_STEP_NUMBER):
             self._activate_led()
-            sleep(.8)
+            sleep(0.5)
             self._desactivate_led()
-            sleep(.2)
+            sleep(0.2)
         # Ask for LED check
         answer = input("\n\t"
                        + "Avez-vous vu la séquence Bleu / Vert / Rouge / Blanc ?"
@@ -656,13 +690,8 @@ class Bms3Sequencer():
             self._led_colors_test_sequence()
 
     def _led_colors_test_step_by_step(self):
-        sentence = '\tTest de la couleur des LED (une à une).'
-        frame = '*' * (16 + len(sentence))
-        frame = '\n' + frame + '\n'
-        print(
-            frame,
-            sentence,
-            frame)
+        self._display_sentence_inside_frame(
+            'Test de la couleur des LED (une à une).')
         # Test the blue LED
         self._led_colors_check(
             '\n\t'
@@ -712,9 +741,9 @@ class Bms3Sequencer():
             # Toogle led until the previous one
             for _ in range(LED_COLOR_STEP_NUMBER - 1):
                 self._activate_led()
-                sleep(.2)
+                sleep(0.2)
                 self._desactivate_led()
-                sleep(.2)
+                sleep(0.2)
             # Restart the test from the current step
             self._led_colors_check(
                 question,
@@ -743,8 +772,8 @@ class Bms3Sequencer():
             logging_name=logging_name,
             logging_folder=normpath(os_path_join(LOGGING_FOLDER, self._lot_number)),
             columns_width=LOG_COLUMNS_WIDTH)
-        self._test_report = self._init_test_report()
-        self._add_date_to_log() 
+        self._init_test_report()
+        self._add_date_to_log()
 
     def _set_logging_name(self) -> str:
         logging_name = ILLEGAL_NTFS_CHARS
@@ -770,15 +799,18 @@ class Bms3Sequencer():
         while(self._test_voltage not in ['9', '18']):
             self._test_voltage = input(
                 '\n\t'
-                'Entrer le type de test (9 / 18 V)'
-                '\n\t\t'
-                '1: 18 V'
-                '\n\t\t'
-                '9: 9 V'
-                '\n'
+                + 'Entrer le type de test (9 / 18 V)'
+                + '\n\t\t'
+                + '1: 18 V'
+                + '\n\t\t'
+                + '9: 9 V'
+                + '\n'
             )
             if self._test_voltage == '1':
                 self._test_voltage = '18'
+                print("\t\tTest des cartes en 18 V sélectionné.\n")
+            elif self._test_voltage == '9':
+                print("\t\tTest des cartes en 9 V sélectionné.\n")
 
         return logging_name + '_' + self._test_voltage + 'V'
 
@@ -795,8 +827,8 @@ class Bms3Sequencer():
 
         return logging_name + '_' + self._lot_number
 
-    def _init_test_report(self) -> dict:
-        return {
+    def _init_test_report(self):
+        self._test_report = {
             'Board number': 'Not Defined',
             'Battery voltage measurement': (
                 {'status': 'Test NOK',
@@ -877,7 +909,7 @@ class Bms3Sequencer():
             'BMS3 current min value / '
             'BMS3 current max value'])
         self._logger.add_lines_to_logging_file([
-            '', '',
+            '', '', '',
             self._test_report['Current consomption in sleep mode']['value']
             ])
 
@@ -1043,8 +1075,6 @@ class Bms3Sequencer():
             relay['state'])
 
     def _set_bench_state_variables(self):
-        self._tenma_alim_state = ConnectionState.Disconnected
-        self._isolated_alim_state = ConnectionState.Disconnected
         self._tenma_dc_power_state = State.Disable
 
     def _is_current_measurement_connected(self):
@@ -1061,18 +1091,37 @@ class Bms3Sequencer():
         self.connect_reprog()
         self.press_push_in_button()
         process_return, std_out = self._bms3_interface.write(firmware_label)
-        self.disconnect_reprog()
         self.release_push_in_button()
+        self.disconnect_reprog()
         self._tenma_dc_power_off()
         return process_return, std_out
+
+    def _load_firmware_with_st_link_utility(self):
+        self.connect_tenma_alim()
+        self._tenma_dc_set_voltage(3333, Item.BMS3)
+        self._tenma_dc_power_on()
+        self.connect_reprog()
+        self.press_push_in_button()
+        self.disconnect_reprog()
+        self._tenma_dc_power_off()
+        sleep(1)
 
     def _get_bms3_voltage_measurement(self, count=3, init=True) -> int:
         if init:
             self.connect_debug_tx()
-        sleep(0.1)
+        sleep(0.3)
         self.connect_debug_rx()
         voltage_measurement = self._bms3_interface.get_measurement()
-        if voltage_measurement == INVALID_VALUE and count > 0:
+        if voltage_measurement == INVALID_VALUE and count >= 2:
+            self.disconnect_debug_rx()
+            voltage_measurement = \
+                self._get_bms3_voltage_measurement(count=count-1, init=False)
+        elif voltage_measurement == INVALID_VALUE and count >= 1:
+            self._bms3_interface.seek_for_port_com()
+            self.disconnect_debug_rx()
+            voltage_measurement = \
+                self._get_bms3_voltage_measurement(count=count-1, init=False)
+        elif voltage_measurement == INVALID_VALUE and count >= 0:
             self.disconnect_debug_rx()
             voltage_measurement = \
                 self._get_bms3_voltage_measurement(count=count-1, init=False)
@@ -1110,6 +1159,9 @@ class Bms3Sequencer():
         self.menu = Menu()
         for firmware in self._firmware_files_list:
             self.menu.add('auto', firmware, lambda: None)
+        self.menu.add('S',
+                      'Programmer les BMS3 avec STM32 ST_Link Utility.',
+                      lambda: None)
         self.menu.add('N', 'Ne pas programmer les BMS3.', lambda: None)
         key_max_lenght, option_max_lenght = self.menu.max_lenght()
         menu_frame, menu_label = menu_frame_design(
@@ -1128,8 +1180,7 @@ class Bms3Sequencer():
     def _manage_reprog_trouble(self, process_return, std_out):
         if 'Failed to connect to target' in std_out:
             self._display_sentence_inside_frame(
-                'Veuillez vérifier les branchements du banc de test.'
-            )
+                'Veuillez vérifier les branchements du banc de test.')
         elif isinstance(process_return, TimeoutExpired):
             self._display_sentences_inside_frame([
                 'Reprogrammation impossible.',
@@ -1146,7 +1197,7 @@ class Bms3Sequencer():
             self.activate_current_measurement()
         # Check if push_in in automatic mode worked
         self._activate_relay(self._relay_push_in)
-        sleep(.5)
+        sleep(2)
         current_measurement = self._ampmeter.get_measurement()
         self._desactivate_relay(self._relay_push_in)
         if current_measurement > CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD:
@@ -1291,12 +1342,12 @@ class Bms3Sequencer():
     # Tenma DC
     def _tenma_dc_power_on(self):
         if self._tenma_dc_power_state == State.Disable:
-            self._tenma_dc_power_state == State.Enable
+            self._tenma_dc_power_state = State.Enable
             self._tenma_dc_power.power('ON')
 
     def _tenma_dc_power_off(self):
         if self._tenma_dc_power_state == State.Enable:
-            self._tenma_dc_power_state == State.Disable
+            self._tenma_dc_power_state = State.Disable
             self._tenma_dc_power.set_voltage(0)
             self._tenma_dc_power.power('OFF')
 

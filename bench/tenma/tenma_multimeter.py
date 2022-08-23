@@ -117,7 +117,7 @@ class Tenma_72_7730A_manage(threading.Thread):
                     print()
 
     def get_measurement(self) -> int:
-        return self._measurement
+        return int(self._measurement * 1000)
 
     def get_mode(self) -> str:
         if self._mode is None:

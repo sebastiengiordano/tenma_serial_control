@@ -46,6 +46,14 @@ class BMS3Command:
         st_flash = StFlash()
         return st_flash.write(self._firmware_path), st_flash.get_std_out()
 
+    def seek_for_port_com(self):
+        self._end_measurement = True
+        self._debug_tx_serial.close()
+        port = self._seek_for_port_com()
+        self._end_measurement = False
+        self._connect_debug_tx_serial(port)
+        sleep(0.5)
+
     def _connect_to_serial(
             self,
             port: str,
@@ -101,7 +109,7 @@ class BMS3Command:
                 daemon=True)
             measurement_thread.start()
             self._connect_to_debug_tx = True
-        except serial.SerialException as serial_exception:
+        except serial.SerialException:
             port = self._seek_for_port_com()
             self._connect_debug_tx_serial(port)
 
@@ -144,6 +152,8 @@ class BMS3Command:
                 if not voltage_measurement == '':
                     self._voltage_measurement = int(voltage_measurement.strip())
             except UnicodeDecodeError:
+                pass
+            except ValueError:
                 pass
 
     def _set_firmware_folder(self):
