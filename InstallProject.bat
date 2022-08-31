@@ -1,6 +1,7 @@
-@echo off
+@echo on
 cd %CD%
-call python -m venv env
+call py -m venv env
 call .\env\Scripts\activate.bat
-call python -m pip install -–upgrade pip
-call python -m pip install -r requirements.txt
+call .\env\Scripts\python.exe -m pip install --upgrade pip
+call .\env\Scripts\python.exe -m pip install -r requirements.txt
+@pause
