@@ -952,15 +952,15 @@ class Bms3Sequencer():
     def _test_status(self):
         if (
                 self._test_report[
-                    'Battery voltage measurement']['values'] == 'Test OK'
+                    'Battery voltage measurement']['status'] == 'Test OK'
                 and
-                self._test_report['Vout test']['values'] == 'Test OK'
+                self._test_report['Vout test']['status'] == 'Test OK'
                 and
                 self._test_report[
                     'Current consomption in sleep mode'][
-                        'values'] == 'Test OK'
+                        'status'] == 'Test OK'
                 and
-                self._test_report['Battery charge']['values'] == 'Test OK'
+                self._test_report['Battery charge']['status'] == 'Test OK'
                 and
                 self._test_report['LED colors']['status_red'] == 'Test OK'
                 and
