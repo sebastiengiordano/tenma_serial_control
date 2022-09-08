@@ -17,13 +17,20 @@ from bench.utils.utils import State
 from bench.utils.menus import Menu, menu_frame_design
 
 # Test parameters
-VOLTAGE_MEASUREMENT_THRESHOLD = 5                   # mV
-V_OUT_TOLERANCE = 500                               # mV
-CURRENT_TOLERANCE = 10                              # %
-CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_9_V = 44000   # µA
-CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_18_V = 66000  # µA
-CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_9_V = 330    # µA
-CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_18_V = 1200  # µA
+VOLTAGE_MEASUREMENT_LOW_THRESHOLD = 5               # mV
+VOLTAGE_MEASUREMENT_HIGH_THRESHOLD = 5              # mV
+V_OUT_FOR_9_V_MIN = 8500                            # mV
+V_OUT_FOR_9_V_MAX = 9500                            # mV
+V_OUT_FOR_18_V_MIN = 17500                          # mV
+V_OUT_FOR_18_V_MAX = 18500                          # mV
+I_OUT_LOW_LOAD_FOR_9_V_MIN = 39600                  # µA
+I_OUT_LOW_LOAD_FOR_9_V_MAX = 48500                  # µA
+I_OUT_LOW_LOAD_FOR_18_V_MIN = 59400                 # µA
+I_OUT_LOW_LOAD_FOR_18_V_MAX = 72600                 # µA
+I_OUT_HIGH_LOAD_FOR_9_V_MIN = 290                   # µA
+I_OUT_HIGH_LOAD_FOR_9_V_MAX = 370                   # µA
+I_OUT_HIGH_LOAD_FOR_18_V_MIN = 1080                 # µA
+I_OUT_HIGH_LOAD_FOR_18_V_MAX = 1320                 # µA
 CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD = 2    # µA
 CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD = 10  # µA
 BATTERY_CHARGE_CURRENT_HIGH_THRESHOLD = 270         # mA
@@ -314,8 +321,8 @@ class Bms3Sequencer():
             # Test: Battery voltage measurement
             self._battery_voltage_measurement_test()
 
-            # Test: Vout test
-            self._v_out_test()
+            # Test: Vout / Iout test
+            self._v_i_out_test()
 
             # Test: Current consomption in sleep mode
             self._current_consomption_in_sleep_mode_test()
@@ -396,14 +403,16 @@ class Bms3Sequencer():
         voltage_measurement = self._voltmeter.get_measurement()
 
         # Set voltage threshold
-        measurement_high_threshold = voltage_measurement + VOLTAGE_MEASUREMENT_THRESHOLD
-        measurement_low_threshold = voltage_measurement - VOLTAGE_MEASUREMENT_THRESHOLD
+        measurement_high_threshold = voltage_measurement + VOLTAGE_MEASUREMENT_HIGH_THRESHOLD
+        measurement_low_threshold = voltage_measurement - VOLTAGE_MEASUREMENT_LOW_THRESHOLD
 
         # Add measurement values to test report
         self._test_report['Battery voltage measurement']['values'].append(
             str(bms3_voltage_measurement)
             + ' / '
-            + str(voltage_measurement))
+            + str(measurement_low_threshold)
+            + ' / '
+            + str(measurement_high_threshold))
 
         # Check measurement values
         if (
@@ -429,29 +438,30 @@ class Bms3Sequencer():
             print('\t\t', value, end='')
         print()
 
-
         #############
         # Vout test #
         #############
-    def _v_out_test(self):
+    def _v_i_out_test(self):
         # Init test
         self._display_sentence_inside_frame('Vout test')
         test_report_status = []
         self.activate_current_measurement_and_check_reset()
         self.activate_v_out_measurement()
         # Set voltage to check and current threshold
-        (voltage_to_check,
+        (voltage_low_threshold,
+         voltage_high_threshold,
          low_load_current_low_threshold,
          low_load_current_high_threshold,
          high_load_current_low_threshold,
          high_load_current_high_threshold) = \
-            self._v_out_test_set_value_to_check()
+            self._v_i_out_test_set_value_to_check()
 
         # Test low load
         self.connect_low_load()
         test_report_status.append(
-            self._v_out_test_check(
-                voltage_to_check,
+            self._v_i_out_test_check(
+                voltage_low_threshold,
+                voltage_high_threshold,
                 low_load_current_low_threshold,
                 low_load_current_high_threshold))
 
@@ -462,39 +472,47 @@ class Bms3Sequencer():
         # Test high load
         self.connect_high_load()
         test_report_status.append(
-            self._v_out_test_check(
-                voltage_to_check,
+            self._v_i_out_test_check(
+                voltage_low_threshold,
+                voltage_high_threshold,
                 high_load_current_low_threshold,
                 high_load_current_high_threshold))
 
         # Evaluate test reports status
-        self._v_out_evaluate_test(test_report_status)
+        self._v_i_out_evaluate_test(test_report_status)
 
         # End Vout test
-        self._v_out_end_test()
+        self._v_i_out_end_test()
 
-    def _v_out_test_set_value_to_check(self) -> tuple[int]:
+    def _v_i_out_test_set_value_to_check(self) -> tuple[int]:
         if self._test_voltage == '9':
             # Set voltage_to_check and current threshold for Vout = 9 V
-            voltage_to_check = 9000
-            low_load_current = CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_9_V
-            high_load_current = CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_9_V
-                                    
+            voltage_low_threshold = V_OUT_FOR_9_V_MIN
+            voltage_high_threshold = V_OUT_FOR_9_V_MAX
+            low_load_current_min = I_OUT_LOW_LOAD_FOR_9_V_MIN
+            low_load_current_max = I_OUT_LOW_LOAD_FOR_9_V_MAX
+            high_load_current_min = I_OUT_HIGH_LOAD_FOR_9_V_MIN
+            high_load_current_max = I_OUT_HIGH_LOAD_FOR_9_V_MAX
         else:
             # Set voltage_to_check and current threshold for Vout = 18 V
-            voltage_to_check = 18000
-            low_load_current = CURRENT_CONSOMPTION_WHEN_LOW_LOAD_FOR_18_V
-            high_load_current = CURRENT_CONSOMPTION_WHEN_HIGH_LOAD_FOR_18_V
+            voltage_low_threshold = V_OUT_FOR_18_V_MIN
+            voltage_high_threshold = V_OUT_FOR_18_V_MAX
+            low_load_current_min = I_OUT_LOW_LOAD_FOR_18_V_MIN
+            low_load_current_max = I_OUT_LOW_LOAD_FOR_18_V_MAX
+            high_load_current_min = I_OUT_HIGH_LOAD_FOR_18_V_MIN
+            high_load_current_max = I_OUT_HIGH_LOAD_FOR_18_V_MAX
         return (
-            voltage_to_check,
-            int(low_load_current * (100 - CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
-            int(low_load_current * (100 + CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD,
-            int(high_load_current * (100 - CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_LOW_THRESHOLD,
-            int(high_load_current * (100 + CURRENT_TOLERANCE) / 100) + CURRENT_CONSOMPTION_SLEEP_MODE_HIGH_THRESHOLD)
+            voltage_low_threshold,
+            voltage_high_threshold,
+            low_load_current_min,
+            low_load_current_max,
+            high_load_current_min,
+            high_load_current_max)
 
-    def _v_out_test_check(
+    def _v_i_out_test_check(
             self,
-            voltage_to_check: int,
+            voltage_low_threshold: int,
+            voltage_high_threshold: int,
             current_low_threshold: int,
             current_high_threshold: int) -> list:
         # Get measurements
@@ -502,16 +520,14 @@ class Bms3Sequencer():
         v_out_measurement = self._voltmeter.get_measurement()
         current_measurement = self._ampmeter.get_measurement()
 
-        # Set voltage threshold
-        voltage_high_threshold = voltage_to_check + V_OUT_TOLERANCE
-        voltage_low_threshold = voltage_to_check - V_OUT_TOLERANCE
-
         # Add measurement values to test report
         self._test_report['Vout test']['voltage values'].append(
             str(v_out_measurement)
             + ' / '
-            + str(voltage_to_check))
-        self._test_report['Vout test']['current values'].append(
+            + str(voltage_low_threshold)
+            + ' / '
+            + str(voltage_high_threshold))
+        self._test_report['Iout test']['current values'].append(
             str(current_measurement)
             + ' / '
             + str(current_low_threshold)
@@ -520,28 +536,42 @@ class Bms3Sequencer():
 
         # Check measurement values
         if (
-                (
-                    v_out_measurement < voltage_high_threshold
-                    and
-                    v_out_measurement > voltage_low_threshold)
+                v_out_measurement < voltage_high_threshold
                 and
-                (
-                    current_measurement < current_high_threshold
-                    and
-                    current_measurement > current_low_threshold
-                )):
-            return True
+                v_out_measurement > voltage_low_threshold):
+            v_out_check = True
         else:
-            return False
+            v_out_check = False
 
-    def _v_out_evaluate_test(self, test_report_status: list):
+        if(
+                current_measurement < current_high_threshold
+                and
+                current_measurement > current_low_threshold):
+            i_out_check = True
+        else:
+            i_out_check = False
+        return (v_out_check, i_out_check)
+
+    def _v_i_out_evaluate_test(self, test_report_status: list):
+        v_out_check = True
+        i_out_check = True
         # Evaluate test reports status
-        if False not in test_report_status:
+        for v_out_status, i_out_status in test_report_status:
+            if v_out_status is False:
+                v_out_check = False
+            if i_out_status is False:
+                i_out_check = False
+
+        if v_out_check is True:
             self._test_report[
                 'Vout test'][
                     'status'] = 'Test OK'
+        if i_out_check is True:
+            self._test_report[
+                'Iout test'][
+                    'status'] = 'Test OK'
 
-    def _v_out_end_test(self):
+    def _v_i_out_end_test(self):
         self.disconnect_load()
         # Since the next test is "Current consomption in sleep mode"
         # The current measurement isn't desactivated.
@@ -550,11 +580,16 @@ class Bms3Sequencer():
 
         # Display test reports status
         vout_report = self._test_report['Vout test']
-        print(f"\tTest Status :\t{vout_report['status']}")
-        values = zip(vout_report['voltage values'], vout_report['current values'])
-        print('\t\tvoltages\tBMS3 courant / min value / max value attendues')
-        for voltages, currents in values:
-            print(f'\t\t{voltages}\t{currents}')
+        iout_report = self._test_report['Iout test']
+        print(f"\tVout Test Status :\t{vout_report['status']}")
+        print('\t\tBMS3 voltages / valeur min  / valeur max attendues')
+        for voltages in vout_report['voltage values']:
+            print(f'\t\t{voltages}')
+        print()
+        print(f"\tIout Test Status :\t{iout_report['status']}")
+        print('\t\tBMS3 courant / valeur min  / valeur max attendues')
+        for currents in iout_report['current values']:
+            print(f'\t\t{currents}')
         print()
 
         ##########################################
@@ -847,7 +882,9 @@ class Bms3Sequencer():
                  'values': []}),
             'Vout test': (
                 {'status': 'Test NOK',
-                 'voltage values': [],
+                 'voltage values': []}),
+            'Iout test': (
+                {'status': 'Test NOK',
                  'current values': []}),
             'Current consomption in sleep mode': (
                 {'status': 'Test NOK',
@@ -875,7 +912,7 @@ class Bms3Sequencer():
         self._logger.add_lines_to_logging_file([
             '', 'Battery voltage measurement',
             self._test_report['Battery voltage measurement']['status'],
-            'BMS3 measurement / Voltmeter measurement'])
+            'BMS3 measurement / Voltmeter (min & max value tolerance)'])
         # Get measurement values
         values = self._test_report['Battery voltage measurement']['values']
         # Add measurement values to log file
@@ -888,26 +925,27 @@ class Bms3Sequencer():
         # Add status to log file
         self._logger.add_lines_to_logging_file([
             '', 'Vout test',
-            self._test_report['Vout test']['status']])
+            self._test_report['Vout test']['status'],
+            'BMS3 voltage measurement / Vout min / Vout max expected'])
         # Get measurement values
-        voltage_values = self._test_report['Vout test'][
-            'voltage values']
-        current_values = self._test_report['Vout test'][
-            'current values']
+        voltage_values = self._test_report['Vout test']['voltage values']
         # Add voltage measurement values to log file
-        self._logger.add_lines_to_logging_file([
-            '', '', '',
-            'BMS3 voltage measurement / Vout expected'])
         for voltage_value in voltage_values:
             self._logger.add_lines_to_logging_file([
                 '', '', '',
                 voltage_value])
-        # Add current measurement values to log file
+
+        # Iout test
+        # Add status to log file
         self._logger.add_lines_to_logging_file([
-            '', '', '',
+            '', 'Iout test',
+            self._test_report['Iout test']['status'],
             'BMS3 current consomption / '
             'BMS3 current min value / '
             'BMS3 current max value'])
+        # Get measurement values
+        current_values = self._test_report['Iout test']['current values']
+        # Add current measurement values to log file
         for current_value in current_values:
             self._logger.add_lines_to_logging_file([
                 '', '', '',
