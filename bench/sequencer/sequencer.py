@@ -33,7 +33,7 @@ LED_COLOR_STEP_NUMBER = 4                           # RGB and White
 # Logging
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
-LOG_COLUMNS_WIDTH = [5, 35, 10, 75]
+LOG_COLUMNS_WIDTH = [5, 35, 15, 75]
 
 # Multimeter
 ID_PRODUCT = 0xE008

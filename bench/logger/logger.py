@@ -70,6 +70,7 @@ class Logger:
         cell_format = self._set_cell_format()
         cell_format_ok = self._set_cell_format('green')
         cell_format_nok = self._set_cell_format('red')
+        cell_format_board_number = self._set_cell_format('cyan')
         # Update column width
         for colum_index, width in enumerate(self._columns_width):
             worksheet.set_column(colum_index, colum_index, width)
@@ -85,6 +86,8 @@ class Logger:
                         choice_format = cell_format_ok
                     elif col == 'Test NOK' or col == 'Exception occurs':
                         choice_format = cell_format_nok
+                    elif col == 'Board number':
+                        choice_format = cell_format_board_number
                     else:
                         choice_format = cell_format
                     worksheet.write(r, c, col, choice_format)
