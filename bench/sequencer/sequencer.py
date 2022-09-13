@@ -40,7 +40,7 @@ LED_COLOR_STEP_NUMBER = 4                           # RGB and White
 # Logging
 LOGGING_FOLDER = "../../logging"
 DEFAULT_LOG_LABEL = 'BMS3_post_prod_test'
-LOG_COLUMNS_WIDTH = [5, 35, 15, 75]
+LOG_COLUMNS_WIDTH = [5, 35, 17, 75]
 
 # Multimeter
 ID_PRODUCT = 0xE008
@@ -1014,7 +1014,7 @@ class Bms3Sequencer():
         self._logger.add_lines_to_logging_file([
             '',
             'Date du test :',
-            date.today().strftime('%Y-%m-%d')])
+            date.today().strftime('%d-%m-%Y %I:%M')])
 
     # HAL
     def _set_hal(self):
