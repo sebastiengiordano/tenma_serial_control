@@ -994,6 +994,8 @@ class Bms3Sequencer():
                 and
                 self._test_report['Vout test']['status'] == 'Test OK'
                 and
+                self._test_report['Iout test']['status'] == 'Test OK'
+                and
                 self._test_report[
                     'Current consomption in sleep mode'][
                         'status'] == 'Test OK'
