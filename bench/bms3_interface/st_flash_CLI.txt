@@ -1,0 +1,8 @@
+st-flash.exe --connect-under-reset --reset write ./bms3_firmwares/BMS_3.0_v3_v02.05.bin/ 0x8000000
+
+st-flash.exe --connect-under-reset erase
+st-flash.exe --connect-under-reset reset
+
+
+
+st-flash.exe --connect-under-reset --reset write "C:\Projets\BMS3\Test_Bench\bench\bms3_interface\bms3_firmwares/BMS_3.0_v3_v02.05.bin/" 0x8000000
